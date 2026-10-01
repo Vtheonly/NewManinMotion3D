@@ -1,55 +1,16 @@
 [
   {
     "name": "valid_2d",
+    "expectValid": true,
     "document": {
-      "schema": "sci-ir/1",
-      "id": "sample_2d",
-      "title": "Sample 2D",
-      "sceneType": "scene_2d",
-      "objects": [
-        {
-          "id": "panel",
-          "type": "ui.panel",
-          "properties": {
-            "width": 6.0,
-            "height": 3.0,
-            "title": "Panel"
-          },
-          "transform": {
-            "position": [
-              -2.5,
-              1.0,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
-        },
-        {
-          "id": "eq",
-          "type": "math.formula",
-          "properties": {
-            "source": "tau = J(theta).T @ F",
-            "fontSize": 40
-          },
-          "transform": {
-            "position": [
-              2.0,
-              -0.5,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
+      "bindings": {
+        "theta": {
+          "kind": "literal",
+          "value": 0.6
         }
-      ],
+      },
       "expressions": [
         {
-          "id": "eq",
-          "source": "tau = J(theta).T @ F",
-          "terms": {
-            "Jt": "J(theta).T"
-          },
           "bindings": {
             "theta": {
               "kind": "literal",
@@ -58,14 +19,144 @@
           },
           "highlights": [
             "J(theta).T"
+          ],
+          "id": "eq",
+          "source": "tau = J(theta).T @ F",
+          "terms": {
+            "Jt": "J(theta).T"
+          }
+        }
+      ],
+      "id": "sample_scene",
+      "objects": [
+        {
+          "id": "panel",
+          "properties": {
+            "height": 3,
+            "title": "Panel",
+            "width": 6
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              1,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "ui.panel"
+        },
+        {
+          "id": "caption",
+          "properties": {
+            "fontSize": 24,
+            "text": "hello"
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              2.6,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "text.label"
+        },
+        {
+          "id": "eq",
+          "properties": {
+            "fontSize": 40,
+            "source": "tau = J(theta).T @ F"
+          },
+          "transform": {
+            "position": [
+              2,
+              -0.5,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "math.formula"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "link",
+          "kind": "arrow",
+          "live": true,
+          "properties": {
+            "color": "accent"
+          },
+          "sources": [
+            "panel",
+            "eq"
           ]
         }
       ],
+      "sceneType": "scene_2d",
+      "schema": "sci-ir/1",
+      "timeline": [
+        {
+          "id": "s1",
+          "steps": [
+            {
+              "op": "show",
+              "target": "panel"
+            },
+            {
+              "animation": "write",
+              "duration": 1.5,
+              "op": "play",
+              "target": "eq"
+            },
+            {
+              "duration": 1,
+              "op": "highlight",
+              "properties": {
+                "color": "warn"
+              },
+              "target": "eq"
+            },
+            {
+              "duration": 1,
+              "op": "annotate",
+              "properties": {
+                "value": "E = {energy}"
+              },
+              "target": "panel"
+            },
+            {
+              "duration": 2,
+              "op": "camera",
+              "properties": {
+                "zoom": 0.85
+              }
+            },
+            {
+              "duration": 1.2,
+              "op": "transform",
+              "properties": {
+                "width": 7
+              },
+              "target": "panel"
+            },
+            {
+              "code": "print('custom code preserved')",
+              "op": "custom"
+            }
+          ],
+          "title": "Intro"
+        }
+      ],
+      "title": "Sample",
       "values": [
         {
+          "format": "E = {value:.2f}",
           "id": "energy",
           "source": {
-            "kind": "derived",
             "expr": "a * b + 1",
             "inputs": {
               "a": {
@@ -76,287 +167,161 @@
                 "kind": "literal",
                 "value": 3
               }
-            }
-          },
-          "format": "E = {value:.2f}"
-        }
-      ],
-      "relationships": [
-        {
-          "id": "link",
-          "kind": "arrow",
-          "sources": [
-            "panel",
-            "eq"
-          ],
-          "live": true
-        }
-      ],
-      "bindings": {
-        "theta": {
-          "kind": "literal",
-          "value": 0.6
-        }
-      },
-      "timeline": [
-        {
-          "id": "s1",
-          "title": "Intro",
-          "steps": [
-            {
-              "op": "show",
-              "target": "panel"
             },
-            {
-              "op": "play",
-              "target": "eq",
-              "animation": "write",
-              "duration": 1.5
-            },
-            {
-              "op": "highlight",
-              "target": "eq",
-              "duration": 1.0,
-              "properties": {
-                "color": "warn"
-              }
-            },
-            {
-              "op": "custom",
-              "code": "print('boundary')"
-            }
-          ]
+            "kind": "derived"
+          }
         }
       ]
-    },
-    "expectValid": true
+    }
   },
   {
     "name": "valid_3d",
+    "expectValid": true,
     "document": {
-      "schema": "sci-ir/1",
-      "id": "torus_demo",
-      "title": "Torus Demo",
-      "sceneType": "three_d",
       "camera": {
         "phi": 70,
-        "theta": -40,
-        "distance": 11.0
+        "theta": -40
       },
+      "expressions": [],
+      "id": "torus_demo",
       "objects": [
         {
           "id": "torus",
-          "type": "kinematics.torus",
           "properties": {
-            "majorRadius": 2.4,
-            "minorRadius": 0.85,
-            "steps": 80,
-            "dt": 0.045
+            "dt": 0.045,
+            "majorRadius": 2.2,
+            "minorRadius": 0.8,
+            "steps": 90
           },
-          "space": "world3d"
+          "type": "kinematics.torus"
         },
         {
           "id": "chain",
-          "type": "kinematics.chain",
           "properties": {
+            "linkLength": 0.9,
             "thetas": [
-              0.9,
-              -0.55,
-              0.35,
-              0.15
-            ],
-            "linkLength": 0.9
+              0.3,
+              0.5,
+              0.2
+            ]
           },
-          "space": "world3d",
+          "type": "kinematics.chain"
+        },
+        {
+          "id": "jac",
           "transform": {
             "position": [
-              2.2,
-              0.0,
-              0.0
+              0,
+              0,
+              0
             ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
+            "rotation": 0,
+            "scale": 0.55
+          },
+          "type": "kinematics.jacobian"
         },
         {
           "id": "obstacle",
-          "type": "kinematics.obstacle",
           "properties": {
             "center": [
-              1.85,
-              0.75,
-              0.45
+              1,
+              0.5,
+              0.3
             ],
-            "radius": 0.72
+            "radius": 0.55
           },
-          "space": "world3d"
-        }
-      ],
-      "expressions": [],
-      "values": [
-        {
-          "id": "hero",
-          "source": {
-            "kind": "data",
-            "ref": "synth/protein.json",
-            "key": "energy"
-          },
-          "format": "\u0394G = {value:.2f}"
+          "type": "kinematics.obstacle"
         }
       ],
       "relationships": [],
+      "sceneType": "three_d",
+      "schema": "sci-ir/1",
       "timeline": [
         {
           "id": "flow",
-          "title": "Flow",
           "steps": [
             {
-              "op": "play",
-              "target": "torus",
-              "animation": "create",
-              "duration": 2.0
+              "op": "show",
+              "target": "torus"
             },
             {
-              "op": "camera",
-              "duration": 3.2,
+              "animation": "create",
+              "duration": 2,
+              "op": "play",
+              "target": "chain"
+            },
+            {
+              "duration": 1,
+              "op": "highlight",
               "properties": {
-                "orbit": 0.18
-              }
+                "color": "warn"
+              },
+              "target": "chain"
             }
-          ]
+          ],
+          "title": "Flow"
         }
-      ]
-    },
-    "expectValid": true
+      ],
+      "title": "Torus Demo",
+      "values": []
+    }
   },
   {
     "name": "valid_wall",
+    "expectValid": true,
     "document": {
-      "schema": "sci-ir/1",
-      "id": "wall_demo",
-      "title": "Wall Demo",
-      "sceneType": "moving_camera",
       "camera": {
         "backgroundColor": "bg",
         "zoom": 0.92
       },
+      "expressions": [],
+      "id": "wall_demo",
       "objects": [
         {
           "id": "wall",
-          "type": "ui.grid",
           "properties": {
-            "columns": 3,
-            "rows": 2,
             "cellWidth": 1.5,
-            "cellHeight": 1.5,
-            "gap": 0.24
-          }
+            "columns": 4,
+            "gap": 0.24,
+            "rows": 3
+          },
+          "type": "ui.grid"
         },
         {
-          "id": "prot_0",
-          "type": "biology.protein",
+          "id": "banner",
           "properties": {
-            "residues": 18,
-            "seed": 3,
-            "representation": "trace"
+            "height": 1.1,
+            "width": 10
           },
           "transform": {
             "position": [
-              -1.0,
-              0.5,
-              0.0
+              0,
+              3.4,
+              0
             ],
-            "rotation": 0.0,
-            "scale": 0.5
-          }
-        },
-        {
-          "id": "stamp_0",
-          "type": "ui.stamp",
-          "properties": {
-            "verdict": "fail"
+            "rotation": 0,
+            "scale": 1
           },
-          "transform": {
-            "position": [
-              -1.0,
-              -0.6,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 0.62
-          }
-        },
-        {
-          "id": "prot_1",
-          "type": "biology.protein",
-          "properties": {
-            "residues": 22,
-            "seed": 4,
-            "representation": "trace"
-          },
-          "transform": {
-            "position": [
-              0.0,
-              0.5,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 0.5
-          }
+          "type": "ui.panel"
         },
         {
           "id": "stamp_1",
-          "type": "ui.stamp",
           "properties": {
             "verdict": "ok"
           },
           "transform": {
             "position": [
-              0.0,
-              -0.6,
-              0.0
+              1,
+              -1,
+              0
             ],
-            "rotation": 0.0,
-            "scale": 0.62
-          }
-        },
-        {
-          "id": "prot_2",
-          "type": "biology.protein",
-          "properties": {
-            "residues": 26,
-            "seed": 5,
-            "representation": "trace"
+            "rotation": 0,
+            "scale": 1
           },
-          "transform": {
-            "position": [
-              1.0,
-              0.5,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 0.5
-          }
-        },
-        {
-          "id": "stamp_2",
-          "type": "ui.stamp",
-          "properties": {
-            "verdict": "fail"
-          },
-          "transform": {
-            "position": [
-              1.0,
-              -0.6,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 0.62
-          }
+          "type": "ui.stamp"
         },
         {
           "id": "scorer",
-          "type": "nn.network",
           "properties": {
             "layers": [
               4,
@@ -365,114 +330,280 @@
             ],
             "seed": 11
           },
-          "transform": {
-            "position": [
-              4.5,
-              0.0,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 0.85
-          }
+          "type": "nn.network"
         }
       ],
-      "expressions": [],
-      "values": [],
       "relationships": [],
+      "sceneType": "moving_camera",
+      "schema": "sci-ir/1",
       "timeline": [
         {
-          "id": "reveal",
-          "title": "Reveal",
+          "id": "intro",
           "steps": [
             {
               "op": "show",
               "target": "wall"
             },
             {
+              "animation": "fade_in",
+              "duration": 1.2,
               "op": "play",
-              "target": "stamp_0",
-              "animation": "grow",
-              "duration": 0.6,
-              "rate": "smooth"
-            },
-            {
-              "op": "play",
-              "target": "stamp_1",
-              "animation": "grow",
-              "duration": 0.6,
-              "rate": "smooth"
-            },
-            {
-              "op": "play",
-              "target": "stamp_2",
-              "animation": "grow",
-              "duration": 0.6,
-              "rate": "smooth"
-            },
-            {
-              "op": "camera",
-              "duration": 2.0,
-              "properties": {
-                "zoom": 1.12
-              }
+              "target": "banner"
             }
-          ]
+          ],
+          "title": "The Wall"
+        }
+      ],
+      "title": "Wall Demo",
+      "values": [
+        {
+          "format": "\u0394G = {value:.2f} kcal/mol",
+          "id": "hero_energy",
+          "source": {
+            "key": "energy",
+            "kind": "data",
+            "ref": "synth/protein.json"
+          }
         }
       ]
-    },
-    "expectValid": true
+    }
+  },
+  {
+    "name": "valid_suprepto",
+    "expectValid": true,
+    "document": {
+      "annotations": [
+        {
+          "format": "v = {value:.2f}",
+          "id": "live_speed",
+          "provider": "speed",
+          "target": "stage_panel"
+        }
+      ],
+      "comparisons": [
+        {
+          "id": "cmp",
+          "kind": "before_after",
+          "metrics": [
+            {
+              "a": 1,
+              "b": 2.5,
+              "deltaFormat": "{delta:+.2f}",
+              "format": "{value}",
+              "label": "score"
+            }
+          ],
+          "title": "Score change"
+        }
+      ],
+      "expressions": [],
+      "id": "suprepto_demo",
+      "objects": [
+        {
+          "id": "stage_panel",
+          "properties": {
+            "height": 2.5,
+            "width": 5
+          },
+          "type": "ui.panel"
+        },
+        {
+          "id": "readout",
+          "properties": {
+            "format": "{value:.1f}",
+            "provider": "x",
+            "title": "x"
+          },
+          "transform": {
+            "position": [
+              2.2,
+              1.2,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "presentation.metric_card"
+        },
+        {
+          "id": "graph",
+          "properties": {
+            "edges": [
+              {
+                "from": "a",
+                "to": "b",
+                "weight": 0.7
+              },
+              {
+                "directed": true,
+                "from": "b",
+                "to": "c",
+                "weight": 1
+              }
+            ],
+            "layout": "circle",
+            "nodes": [
+              {
+                "id": "a",
+                "label": "A"
+              },
+              {
+                "color": "accent2",
+                "id": "b",
+                "label": "B"
+              },
+              {
+                "id": "c",
+                "label": "C"
+              }
+            ]
+          },
+          "transform": {
+            "position": [
+              0,
+              -1.8,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "graph.network"
+        }
+      ],
+      "relationships": [],
+      "sceneType": "scene_2d",
+      "schema": "sci-ir/1",
+      "state": {
+        "derived": [
+          {
+            "expr": "x / 2",
+            "id": "speed",
+            "inputs": {
+              "x": "x"
+            }
+          }
+        ],
+        "machines": [
+          {
+            "id": "gd",
+            "initial": "initial",
+            "states": [
+              {
+                "id": "initial",
+                "label": "Initial"
+              },
+              {
+                "id": "updated",
+                "label": "Updated"
+              }
+            ],
+            "transitions": [
+              {
+                "id": "t1",
+                "sets": {
+                  "x": 4
+                },
+                "source": "initial",
+                "target": "updated",
+                "trigger": "step"
+              }
+            ]
+          }
+        ],
+        "symbols": [
+          {
+            "driver": {
+              "easing": "linear",
+              "keyframes": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  10
+                ]
+              ],
+              "kind": "keyframes"
+            },
+            "id": "x",
+            "kind": "scalar",
+            "value": 0
+          }
+        ]
+      },
+      "timeline": [
+        {
+          "id": "run",
+          "steps": [
+            {
+              "op": "show",
+              "target": "stage_panel"
+            },
+            {
+              "duration": 2,
+              "op": "interpolate",
+              "properties": {
+                "to": 10
+              },
+              "target": "x"
+            },
+            {
+              "op": "set",
+              "properties": {
+                "value": 3
+              },
+              "target": "x"
+            },
+            {
+              "duration": 1,
+              "op": "transition",
+              "properties": {
+                "to": "updated"
+              },
+              "target": "gd"
+            },
+            {
+              "duration": 2,
+              "op": "compare",
+              "target": "cmp"
+            },
+            {
+              "duration": 1,
+              "op": "highlight",
+              "properties": {
+                "behaviors": [
+                  "focus",
+                  "dim_others"
+                ],
+                "color": "warn"
+              },
+              "target": "graph"
+            },
+            {
+              "code": "print('suprepto boundary')",
+              "op": "custom"
+            }
+          ],
+          "title": "Run"
+        }
+      ],
+      "title": "Suprepto Demo",
+      "values": []
+    }
   },
   {
     "name": "unknown_type",
+    "expectValid": false,
     "document": {
-      "schema": "sci-ir/1",
-      "id": "sample_2d",
-      "title": "Sample 2D",
-      "sceneType": "scene_2d",
-      "objects": [
-        {
-          "id": "panel",
-          "type": "ghost.thing",
-          "properties": {
-            "width": 6.0,
-            "height": 3.0,
-            "title": "Panel"
-          },
-          "transform": {
-            "position": [
-              -2.5,
-              1.0,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
-        },
-        {
-          "id": "eq",
-          "type": "math.formula",
-          "properties": {
-            "source": "tau = J(theta).T @ F",
-            "fontSize": 40
-          },
-          "transform": {
-            "position": [
-              2.0,
-              -0.5,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
+      "bindings": {
+        "theta": {
+          "kind": "literal",
+          "value": 0.6
         }
-      ],
+      },
       "expressions": [
         {
-          "id": "eq",
-          "source": "tau = J(theta).T @ F",
-          "terms": {
-            "Jt": "J(theta).T"
-          },
           "bindings": {
             "theta": {
               "kind": "literal",
@@ -481,262 +612,144 @@
           },
           "highlights": [
             "J(theta).T"
-          ]
-        }
-      ],
-      "values": [
-        {
-          "id": "energy",
-          "source": {
-            "kind": "derived",
-            "expr": "a * b + 1",
-            "inputs": {
-              "a": {
-                "kind": "literal",
-                "value": 2
-              },
-              "b": {
-                "kind": "literal",
-                "value": 3
-              }
-            }
-          },
-          "format": "E = {value:.2f}"
-        }
-      ],
-      "relationships": [
-        {
-          "id": "link",
-          "kind": "arrow",
-          "sources": [
-            "panel",
-            "eq"
           ],
-          "live": true
+          "id": "eq",
+          "source": "tau = J(theta).T @ F",
+          "terms": {
+            "Jt": "J(theta).T"
+          }
         }
       ],
-      "bindings": {
-        "theta": {
-          "kind": "literal",
-          "value": 0.6
-        }
-      },
-      "timeline": [
-        {
-          "id": "s1",
-          "title": "Intro",
-          "steps": [
-            {
-              "op": "show",
-              "target": "panel"
-            },
-            {
-              "op": "play",
-              "target": "eq",
-              "animation": "write",
-              "duration": 1.5
-            },
-            {
-              "op": "highlight",
-              "target": "eq",
-              "duration": 1.0,
-              "properties": {
-                "color": "warn"
-              }
-            },
-            {
-              "op": "custom",
-              "code": "print('boundary')"
-            }
-          ]
-        }
-      ]
-    },
-    "expectValid": false
-  },
-  {
-    "name": "unknown_property",
-    "document": {
-      "schema": "sci-ir/1",
-      "id": "sample_2d",
-      "title": "Sample 2D",
-      "sceneType": "scene_2d",
+      "id": "sample_scene",
       "objects": [
         {
           "id": "panel",
-          "type": "ui.panel",
           "properties": {
-            "width": 6.0,
-            "height": 3.0,
+            "height": 3,
             "title": "Panel",
-            "zzz": 1
+            "width": 6
           },
           "transform": {
             "position": [
               -2.5,
-              1.0,
-              0.0
+              1,
+              0
             ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "nope.ghost"
+        },
+        {
+          "id": "caption",
+          "properties": {
+            "fontSize": 24,
+            "text": "hello"
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              2.6,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "text.label"
         },
         {
           "id": "eq",
-          "type": "math.formula",
           "properties": {
-            "source": "tau = J(theta).T @ F",
-            "fontSize": 40
+            "fontSize": 40,
+            "source": "tau = J(theta).T @ F"
           },
           "transform": {
             "position": [
-              2.0,
+              2,
               -0.5,
-              0.0
+              0
             ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
-        }
-      ],
-      "expressions": [
-        {
-          "id": "eq",
-          "source": "tau = J(theta).T @ F",
-          "terms": {
-            "Jt": "J(theta).T"
+            "rotation": 0,
+            "scale": 1
           },
-          "bindings": {
-            "theta": {
-              "kind": "literal",
-              "value": 0.6
-            }
-          },
-          "highlights": [
-            "J(theta).T"
-          ]
-        }
-      ],
-      "values": [
-        {
-          "id": "energy",
-          "source": {
-            "kind": "derived",
-            "expr": "a * b + 1",
-            "inputs": {
-              "a": {
-                "kind": "literal",
-                "value": 2
-              },
-              "b": {
-                "kind": "literal",
-                "value": 3
-              }
-            }
-          },
-          "format": "E = {value:.2f}"
+          "type": "math.formula"
         }
       ],
       "relationships": [
         {
           "id": "link",
           "kind": "arrow",
-          "sources": [
-            "panel",
-            "eq"
-          ],
-          "live": true
-        }
-      ],
-      "bindings": {
-        "theta": {
-          "kind": "literal",
-          "value": 0.6
-        }
-      },
-      "timeline": [
-        {
-          "id": "s1",
-          "title": "Intro",
-          "steps": [
-            {
-              "op": "show",
-              "target": "panel"
-            },
-            {
-              "op": "play",
-              "target": "eq",
-              "animation": "write",
-              "duration": 1.5
-            },
-            {
-              "op": "highlight",
-              "target": "eq",
-              "duration": 1.0,
-              "properties": {
-                "color": "warn"
-              }
-            },
-            {
-              "op": "custom",
-              "code": "print('boundary')"
-            }
-          ]
-        }
-      ]
-    },
-    "expectValid": false
-  },
-  {
-    "name": "missing_formula_pair_normalized",
-    "document": {
-      "schema": "sci-ir/1",
-      "id": "sample_2d",
-      "title": "Sample 2D",
-      "sceneType": "scene_2d",
-      "objects": [
-        {
-          "id": "panel",
-          "type": "ui.panel",
+          "live": true,
           "properties": {
-            "width": 6.0,
-            "height": 3.0,
-            "title": "Panel"
+            "color": "accent"
           },
-          "transform": {
-            "position": [
-              -2.5,
-              1.0,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
-        }
-      ],
-      "expressions": [
-        {
-          "id": "eq",
-          "source": "tau = J(theta).T @ F",
-          "terms": {
-            "Jt": "J(theta).T"
-          },
-          "bindings": {
-            "theta": {
-              "kind": "literal",
-              "value": 0.6
-            }
-          },
-          "highlights": [
-            "J(theta).T"
+          "sources": [
+            "panel",
+            "eq"
           ]
         }
       ],
+      "sceneType": "scene_2d",
+      "schema": "sci-ir/1",
+      "timeline": [
+        {
+          "id": "s1",
+          "steps": [
+            {
+              "op": "show",
+              "target": "panel"
+            },
+            {
+              "animation": "write",
+              "duration": 1.5,
+              "op": "play",
+              "target": "eq"
+            },
+            {
+              "duration": 1,
+              "op": "highlight",
+              "properties": {
+                "color": "warn"
+              },
+              "target": "eq"
+            },
+            {
+              "duration": 1,
+              "op": "annotate",
+              "properties": {
+                "value": "E = {energy}"
+              },
+              "target": "panel"
+            },
+            {
+              "duration": 2,
+              "op": "camera",
+              "properties": {
+                "zoom": 0.85
+              }
+            },
+            {
+              "duration": 1.2,
+              "op": "transform",
+              "properties": {
+                "width": 7
+              },
+              "target": "panel"
+            },
+            {
+              "code": "print('custom code preserved')",
+              "op": "custom"
+            }
+          ],
+          "title": "Intro"
+        }
+      ],
+      "title": "Sample",
       "values": [
         {
+          "format": "E = {value:.2f}",
           "id": "energy",
           "source": {
-            "kind": "derived",
             "expr": "a * b + 1",
             "inputs": {
               "a": {
@@ -747,112 +760,25 @@
                 "kind": "literal",
                 "value": 3
               }
-            }
-          },
-          "format": "E = {value:.2f}"
-        }
-      ],
-      "relationships": [
-        {
-          "id": "link",
-          "kind": "arrow",
-          "sources": [
-            "panel",
-            "eq"
-          ],
-          "live": true
-        }
-      ],
-      "bindings": {
-        "theta": {
-          "kind": "literal",
-          "value": 0.6
-        }
-      },
-      "timeline": [
-        {
-          "id": "s1",
-          "title": "Intro",
-          "steps": [
-            {
-              "op": "show",
-              "target": "panel"
             },
-            {
-              "op": "play",
-              "target": "eq",
-              "animation": "write",
-              "duration": 1.5
-            },
-            {
-              "op": "highlight",
-              "target": "eq",
-              "duration": 1.0,
-              "properties": {
-                "color": "warn"
-              }
-            },
-            {
-              "op": "custom",
-              "code": "print('boundary')"
-            }
-          ]
+            "kind": "derived"
+          }
         }
       ]
-    },
-    "expectValid": true
+    }
   },
   {
     "name": "bad_property_type",
+    "expectValid": false,
     "document": {
-      "schema": "sci-ir/1",
-      "id": "sample_2d",
-      "title": "Sample 2D",
-      "sceneType": "scene_2d",
-      "objects": [
-        {
-          "id": "panel",
-          "type": "ui.panel",
-          "properties": {
-            "width": "wide",
-            "height": 3.0,
-            "title": "Panel"
-          },
-          "transform": {
-            "position": [
-              -2.5,
-              1.0,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
-        },
-        {
-          "id": "eq",
-          "type": "math.formula",
-          "properties": {
-            "source": "tau = J(theta).T @ F",
-            "fontSize": 40
-          },
-          "transform": {
-            "position": [
-              2.0,
-              -0.5,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
+      "bindings": {
+        "theta": {
+          "kind": "literal",
+          "value": 0.6
         }
-      ],
+      },
       "expressions": [
         {
-          "id": "eq",
-          "source": "tau = J(theta).T @ F",
-          "terms": {
-            "Jt": "J(theta).T"
-          },
           "bindings": {
             "theta": {
               "kind": "literal",
@@ -861,14 +787,142 @@
           },
           "highlights": [
             "J(theta).T"
+          ],
+          "id": "eq",
+          "source": "tau = J(theta).T @ F",
+          "terms": {
+            "Jt": "J(theta).T"
+          }
+        }
+      ],
+      "id": "sample_scene",
+      "objects": [
+        {
+          "id": "panel",
+          "properties": {
+            "width": "wide"
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              1,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "ui.panel"
+        },
+        {
+          "id": "caption",
+          "properties": {
+            "fontSize": 24,
+            "text": "hello"
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              2.6,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "text.label"
+        },
+        {
+          "id": "eq",
+          "properties": {
+            "fontSize": 40,
+            "source": "tau = J(theta).T @ F"
+          },
+          "transform": {
+            "position": [
+              2,
+              -0.5,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "math.formula"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "link",
+          "kind": "arrow",
+          "live": true,
+          "properties": {
+            "color": "accent"
+          },
+          "sources": [
+            "panel",
+            "eq"
           ]
         }
       ],
+      "sceneType": "scene_2d",
+      "schema": "sci-ir/1",
+      "timeline": [
+        {
+          "id": "s1",
+          "steps": [
+            {
+              "op": "show",
+              "target": "panel"
+            },
+            {
+              "animation": "write",
+              "duration": 1.5,
+              "op": "play",
+              "target": "eq"
+            },
+            {
+              "duration": 1,
+              "op": "highlight",
+              "properties": {
+                "color": "warn"
+              },
+              "target": "eq"
+            },
+            {
+              "duration": 1,
+              "op": "annotate",
+              "properties": {
+                "value": "E = {energy}"
+              },
+              "target": "panel"
+            },
+            {
+              "duration": 2,
+              "op": "camera",
+              "properties": {
+                "zoom": 0.85
+              }
+            },
+            {
+              "duration": 1.2,
+              "op": "transform",
+              "properties": {
+                "width": 7
+              },
+              "target": "panel"
+            },
+            {
+              "code": "print('custom code preserved')",
+              "op": "custom"
+            }
+          ],
+          "title": "Intro"
+        }
+      ],
+      "title": "Sample",
       "values": [
         {
+          "format": "E = {value:.2f}",
           "id": "energy",
           "source": {
-            "kind": "derived",
             "expr": "a * b + 1",
             "inputs": {
               "a": {
@@ -879,112 +933,25 @@
                 "kind": "literal",
                 "value": 3
               }
-            }
-          },
-          "format": "E = {value:.2f}"
-        }
-      ],
-      "relationships": [
-        {
-          "id": "link",
-          "kind": "arrow",
-          "sources": [
-            "panel",
-            "eq"
-          ],
-          "live": true
-        }
-      ],
-      "bindings": {
-        "theta": {
-          "kind": "literal",
-          "value": 0.6
-        }
-      },
-      "timeline": [
-        {
-          "id": "s1",
-          "title": "Intro",
-          "steps": [
-            {
-              "op": "show",
-              "target": "panel"
             },
-            {
-              "op": "play",
-              "target": "eq",
-              "animation": "write",
-              "duration": 1.5
-            },
-            {
-              "op": "highlight",
-              "target": "eq",
-              "duration": 1.0,
-              "properties": {
-                "color": "warn"
-              }
-            },
-            {
-              "op": "custom",
-              "code": "print('boundary')"
-            }
-          ]
+            "kind": "derived"
+          }
         }
       ]
-    },
-    "expectValid": false
+    }
   },
   {
-    "name": "unknown_timeline_target",
+    "name": "unknown_target",
+    "expectValid": false,
     "document": {
-      "schema": "sci-ir/1",
-      "id": "sample_2d",
-      "title": "Sample 2D",
-      "sceneType": "scene_2d",
-      "objects": [
-        {
-          "id": "panel",
-          "type": "ui.panel",
-          "properties": {
-            "width": 6.0,
-            "height": 3.0,
-            "title": "Panel"
-          },
-          "transform": {
-            "position": [
-              -2.5,
-              1.0,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
-        },
-        {
-          "id": "eq",
-          "type": "math.formula",
-          "properties": {
-            "source": "tau = J(theta).T @ F",
-            "fontSize": 40
-          },
-          "transform": {
-            "position": [
-              2.0,
-              -0.5,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
+      "bindings": {
+        "theta": {
+          "kind": "literal",
+          "value": 0.6
         }
-      ],
+      },
       "expressions": [
         {
-          "id": "eq",
-          "source": "tau = J(theta).T @ F",
-          "terms": {
-            "Jt": "J(theta).T"
-          },
           "bindings": {
             "theta": {
               "kind": "literal",
@@ -993,150 +960,148 @@
           },
           "highlights": [
             "J(theta).T"
-          ]
+          ],
+          "id": "eq",
+          "source": "tau = J(theta).T @ F",
+          "terms": {
+            "Jt": "J(theta).T"
+          }
         }
       ],
-      "values": [
+      "id": "sample_scene",
+      "objects": [
         {
-          "id": "energy",
-          "source": {
-            "kind": "derived",
-            "expr": "a * b + 1",
-            "inputs": {
-              "a": {
-                "kind": "literal",
-                "value": 2
-              },
-              "b": {
-                "kind": "literal",
-                "value": 3
-              }
-            }
+          "id": "panel",
+          "properties": {
+            "height": 3,
+            "title": "Panel",
+            "width": 6
           },
-          "format": "E = {value:.2f}"
+          "transform": {
+            "position": [
+              -2.5,
+              1,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "ui.panel"
+        },
+        {
+          "id": "caption",
+          "properties": {
+            "fontSize": 24,
+            "text": "hello"
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              2.6,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "text.label"
+        },
+        {
+          "id": "eq",
+          "properties": {
+            "fontSize": 40,
+            "source": "tau = J(theta).T @ F"
+          },
+          "transform": {
+            "position": [
+              2,
+              -0.5,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "math.formula"
         }
       ],
       "relationships": [
         {
           "id": "link",
           "kind": "arrow",
+          "live": true,
+          "properties": {
+            "color": "accent"
+          },
           "sources": [
             "panel",
             "eq"
-          ],
-          "live": true
+          ]
         }
       ],
-      "bindings": {
-        "theta": {
-          "kind": "literal",
-          "value": 0.6
-        }
-      },
+      "sceneType": "scene_2d",
+      "schema": "sci-ir/1",
       "timeline": [
         {
           "id": "s1",
-          "title": "Intro",
           "steps": [
             {
               "op": "show",
               "target": "panel"
             },
             {
-              "op": "play",
-              "target": "eq",
               "animation": "write",
-              "duration": 1.5
+              "duration": 1.5,
+              "op": "play",
+              "target": "eq"
             },
             {
+              "duration": 1,
               "op": "highlight",
-              "target": "eq",
-              "duration": 1.0,
               "properties": {
                 "color": "warn"
+              },
+              "target": "eq"
+            },
+            {
+              "duration": 1,
+              "op": "annotate",
+              "properties": {
+                "value": "E = {energy}"
+              },
+              "target": "panel"
+            },
+            {
+              "duration": 2,
+              "op": "camera",
+              "properties": {
+                "zoom": 0.85
               }
             },
             {
-              "op": "custom",
-              "code": "print('boundary')"
+              "duration": 1.2,
+              "op": "transform",
+              "properties": {
+                "width": 7
+              },
+              "target": "panel"
+            },
+            {
+              "code": "print('custom code preserved')",
+              "op": "custom"
             },
             {
               "op": "show",
               "target": "ghost"
             }
-          ]
-        }
-      ]
-    },
-    "expectValid": false
-  },
-  {
-    "name": "unknown_animation",
-    "document": {
-      "schema": "sci-ir/1",
-      "id": "sample_2d",
-      "title": "Sample 2D",
-      "sceneType": "scene_2d",
-      "objects": [
-        {
-          "id": "panel",
-          "type": "ui.panel",
-          "properties": {
-            "width": 6.0,
-            "height": 3.0,
-            "title": "Panel"
-          },
-          "transform": {
-            "position": [
-              -2.5,
-              1.0,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
-        },
-        {
-          "id": "eq",
-          "type": "math.formula",
-          "properties": {
-            "source": "tau = J(theta).T @ F",
-            "fontSize": 40
-          },
-          "transform": {
-            "position": [
-              2.0,
-              -0.5,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
+          ],
+          "title": "Intro"
         }
       ],
-      "expressions": [
-        {
-          "id": "eq",
-          "source": "tau = J(theta).T @ F",
-          "terms": {
-            "Jt": "J(theta).T"
-          },
-          "bindings": {
-            "theta": {
-              "kind": "literal",
-              "value": 0.6
-            }
-          },
-          "highlights": [
-            "J(theta).T"
-          ]
-        }
-      ],
+      "title": "Sample",
       "values": [
         {
+          "format": "E = {value:.2f}",
           "id": "energy",
           "source": {
-            "kind": "derived",
             "expr": "a * b + 1",
             "inputs": {
               "a": {
@@ -1147,247 +1112,25 @@
                 "kind": "literal",
                 "value": 3
               }
-            }
-          },
-          "format": "E = {value:.2f}"
-        }
-      ],
-      "relationships": [
-        {
-          "id": "link",
-          "kind": "arrow",
-          "sources": [
-            "panel",
-            "eq"
-          ],
-          "live": true
-        }
-      ],
-      "bindings": {
-        "theta": {
-          "kind": "literal",
-          "value": 0.6
-        }
-      },
-      "timeline": [
-        {
-          "id": "s1",
-          "title": "Intro",
-          "steps": [
-            {
-              "op": "show",
-              "target": "panel"
             },
-            {
-              "op": "play",
-              "target": "eq",
-              "animation": "explode",
-              "duration": 1.5
-            },
-            {
-              "op": "highlight",
-              "target": "eq",
-              "duration": 1.0,
-              "properties": {
-                "color": "warn"
-              }
-            },
-            {
-              "op": "custom",
-              "code": "print('boundary')"
-            }
-          ]
-        }
-      ]
-    },
-    "expectValid": false
-  },
-  {
-    "name": "unknown_parent",
-    "document": {
-      "schema": "sci-ir/1",
-      "id": "sample_2d",
-      "title": "Sample 2D",
-      "sceneType": "scene_2d",
-      "objects": [
-        {
-          "id": "panel",
-          "type": "ui.panel",
-          "properties": {
-            "width": 6.0,
-            "height": 3.0,
-            "title": "Panel"
-          },
-          "transform": {
-            "position": [
-              -2.5,
-              1.0,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
-          },
-          "parentId": "ghost"
-        },
-        {
-          "id": "eq",
-          "type": "math.formula",
-          "properties": {
-            "source": "tau = J(theta).T @ F",
-            "fontSize": 40
-          },
-          "transform": {
-            "position": [
-              2.0,
-              -0.5,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
+            "kind": "derived"
           }
         }
-      ],
-      "expressions": [
-        {
-          "id": "eq",
-          "source": "tau = J(theta).T @ F",
-          "terms": {
-            "Jt": "J(theta).T"
-          },
-          "bindings": {
-            "theta": {
-              "kind": "literal",
-              "value": 0.6
-            }
-          },
-          "highlights": [
-            "J(theta).T"
-          ]
-        }
-      ],
-      "values": [
-        {
-          "id": "energy",
-          "source": {
-            "kind": "derived",
-            "expr": "a * b + 1",
-            "inputs": {
-              "a": {
-                "kind": "literal",
-                "value": 2
-              },
-              "b": {
-                "kind": "literal",
-                "value": 3
-              }
-            }
-          },
-          "format": "E = {value:.2f}"
-        }
-      ],
-      "relationships": [
-        {
-          "id": "link",
-          "kind": "arrow",
-          "sources": [
-            "panel",
-            "eq"
-          ],
-          "live": true
-        }
-      ],
-      "bindings": {
-        "theta": {
-          "kind": "literal",
-          "value": 0.6
-        }
-      },
-      "timeline": [
-        {
-          "id": "s1",
-          "title": "Intro",
-          "steps": [
-            {
-              "op": "show",
-              "target": "panel"
-            },
-            {
-              "op": "play",
-              "target": "eq",
-              "animation": "write",
-              "duration": 1.5
-            },
-            {
-              "op": "highlight",
-              "target": "eq",
-              "duration": 1.0,
-              "properties": {
-                "color": "warn"
-              }
-            },
-            {
-              "op": "custom",
-              "code": "print('boundary')"
-            }
-          ]
-        }
       ]
-    },
-    "expectValid": false
+    }
   },
   {
     "name": "parent_cycle",
+    "expectValid": false,
     "document": {
-      "schema": "sci-ir/1",
-      "id": "sample_2d",
-      "title": "Sample 2D",
-      "sceneType": "scene_2d",
-      "objects": [
-        {
-          "id": "panel",
-          "type": "ui.panel",
-          "properties": {
-            "width": 6.0,
-            "height": 3.0,
-            "title": "Panel"
-          },
-          "transform": {
-            "position": [
-              -2.5,
-              1.0,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
-          },
-          "parentId": "eq"
-        },
-        {
-          "id": "eq",
-          "type": "math.formula",
-          "properties": {
-            "source": "tau = J(theta).T @ F",
-            "fontSize": 40
-          },
-          "transform": {
-            "position": [
-              2.0,
-              -0.5,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
-          },
-          "parentId": "panel"
+      "bindings": {
+        "theta": {
+          "kind": "literal",
+          "value": 0.6
         }
-      ],
+      },
       "expressions": [
         {
-          "id": "eq",
-          "source": "tau = J(theta).T @ F",
-          "terms": {
-            "Jt": "J(theta).T"
-          },
           "bindings": {
             "theta": {
               "kind": "literal",
@@ -1396,146 +1139,146 @@
           },
           "highlights": [
             "J(theta).T"
-          ]
+          ],
+          "id": "eq",
+          "source": "tau = J(theta).T @ F",
+          "terms": {
+            "Jt": "J(theta).T"
+          }
         }
       ],
-      "values": [
+      "id": "sample_scene",
+      "objects": [
         {
-          "id": "energy",
-          "source": {
-            "kind": "derived",
-            "expr": "a * b + 1",
-            "inputs": {
-              "a": {
-                "kind": "literal",
-                "value": 2
-              },
-              "b": {
-                "kind": "literal",
-                "value": 3
-              }
-            }
+          "id": "panel",
+          "parentId": "caption",
+          "properties": {
+            "height": 3,
+            "title": "Panel",
+            "width": 6
           },
-          "format": "E = {value:.2f}"
+          "transform": {
+            "position": [
+              -2.5,
+              1,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "ui.panel"
+        },
+        {
+          "id": "caption",
+          "parentId": "panel",
+          "properties": {
+            "fontSize": 24,
+            "text": "hello"
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              2.6,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "text.label"
+        },
+        {
+          "id": "eq",
+          "properties": {
+            "fontSize": 40,
+            "source": "tau = J(theta).T @ F"
+          },
+          "transform": {
+            "position": [
+              2,
+              -0.5,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "math.formula"
         }
       ],
       "relationships": [
         {
           "id": "link",
           "kind": "arrow",
+          "live": true,
+          "properties": {
+            "color": "accent"
+          },
           "sources": [
             "panel",
             "eq"
-          ],
-          "live": true
-        }
-      ],
-      "bindings": {
-        "theta": {
-          "kind": "literal",
-          "value": 0.6
-        }
-      },
-      "timeline": [
-        {
-          "id": "s1",
-          "title": "Intro",
-          "steps": [
-            {
-              "op": "show",
-              "target": "panel"
-            },
-            {
-              "op": "play",
-              "target": "eq",
-              "animation": "write",
-              "duration": 1.5
-            },
-            {
-              "op": "highlight",
-              "target": "eq",
-              "duration": 1.0,
-              "properties": {
-                "color": "warn"
-              }
-            },
-            {
-              "op": "custom",
-              "code": "print('boundary')"
-            }
           ]
         }
-      ]
-    },
-    "expectValid": false
-  },
-  {
-    "name": "bad_relationship_kind",
-    "document": {
+      ],
+      "sceneType": "scene_2d",
       "schema": "sci-ir/1",
-      "id": "sample_2d",
-      "title": "Sample 2D",
-      "sceneType": "scene_2d",
-      "objects": [
+      "timeline": [
         {
-          "id": "panel",
-          "type": "ui.panel",
-          "properties": {
-            "width": 6.0,
-            "height": 3.0,
-            "title": "Panel"
-          },
-          "transform": {
-            "position": [
-              -2.5,
-              1.0,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
-        },
-        {
-          "id": "eq",
-          "type": "math.formula",
-          "properties": {
-            "source": "tau = J(theta).T @ F",
-            "fontSize": 40
-          },
-          "transform": {
-            "position": [
-              2.0,
-              -0.5,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
-        }
-      ],
-      "expressions": [
-        {
-          "id": "eq",
-          "source": "tau = J(theta).T @ F",
-          "terms": {
-            "Jt": "J(theta).T"
-          },
-          "bindings": {
-            "theta": {
-              "kind": "literal",
-              "value": 0.6
+          "id": "s1",
+          "steps": [
+            {
+              "op": "show",
+              "target": "panel"
+            },
+            {
+              "animation": "write",
+              "duration": 1.5,
+              "op": "play",
+              "target": "eq"
+            },
+            {
+              "duration": 1,
+              "op": "highlight",
+              "properties": {
+                "color": "warn"
+              },
+              "target": "eq"
+            },
+            {
+              "duration": 1,
+              "op": "annotate",
+              "properties": {
+                "value": "E = {energy}"
+              },
+              "target": "panel"
+            },
+            {
+              "duration": 2,
+              "op": "camera",
+              "properties": {
+                "zoom": 0.85
+              }
+            },
+            {
+              "duration": 1.2,
+              "op": "transform",
+              "properties": {
+                "width": 7
+              },
+              "target": "panel"
+            },
+            {
+              "code": "print('custom code preserved')",
+              "op": "custom"
             }
-          },
-          "highlights": [
-            "J(theta).T"
-          ]
+          ],
+          "title": "Intro"
         }
       ],
+      "title": "Sample",
       "values": [
         {
+          "format": "E = {value:.2f}",
           "id": "energy",
           "source": {
-            "kind": "derived",
             "expr": "a * b + 1",
             "inputs": {
               "a": {
@@ -1546,191 +1289,896 @@
                 "kind": "literal",
                 "value": 3
               }
-            }
-          },
-          "format": "E = {value:.2f}"
-        }
-      ],
-      "relationships": [
-        {
-          "id": "link",
-          "kind": "teleport",
-          "sources": [
-            "panel",
-            "eq"
-          ],
-          "live": true
-        }
-      ],
-      "bindings": {
-        "theta": {
-          "kind": "literal",
-          "value": 0.6
-        }
-      },
-      "timeline": [
-        {
-          "id": "s1",
-          "title": "Intro",
-          "steps": [
-            {
-              "op": "show",
-              "target": "panel"
             },
-            {
-              "op": "play",
-              "target": "eq",
-              "animation": "write",
-              "duration": 1.5
-            },
-            {
-              "op": "highlight",
-              "target": "eq",
-              "duration": 1.0,
-              "properties": {
-                "color": "warn"
-              }
-            },
-            {
-              "op": "custom",
-              "code": "print('boundary')"
-            }
-          ]
+            "kind": "derived"
+          }
         }
       ]
-    },
-    "expectValid": false
+    }
   },
   {
-    "name": "future_schema",
+    "name": "bad_driver",
+    "expectValid": false,
     "document": {
-      "schema": "sci-ir/2",
-      "id": "sample_2d",
-      "title": "Sample 2D",
-      "sceneType": "scene_2d",
+      "annotations": [
+        {
+          "format": "v = {value:.2f}",
+          "id": "live_speed",
+          "provider": "speed",
+          "target": "stage_panel"
+        }
+      ],
+      "comparisons": [
+        {
+          "id": "cmp",
+          "kind": "before_after",
+          "metrics": [
+            {
+              "a": 1,
+              "b": 2.5,
+              "deltaFormat": "{delta:+.2f}",
+              "format": "{value}",
+              "label": "score"
+            }
+          ],
+          "title": "Score change"
+        }
+      ],
+      "expressions": [],
+      "id": "suprepto_demo",
       "objects": [
         {
-          "id": "panel",
-          "type": "ui.panel",
+          "id": "stage_panel",
           "properties": {
-            "width": 6.0,
-            "height": 3.0,
-            "title": "Panel"
+            "height": 2.5,
+            "width": 5
           },
-          "transform": {
-            "position": [
-              -2.5,
-              1.0,
-              0.0
-            ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
+          "type": "ui.panel"
         },
         {
-          "id": "eq",
-          "type": "math.formula",
+          "id": "readout",
           "properties": {
-            "source": "tau = J(theta).T @ F",
-            "fontSize": 40
+            "format": "{value:.1f}",
+            "provider": "x",
+            "title": "x"
           },
           "transform": {
             "position": [
-              2.0,
-              -0.5,
-              0.0
+              2.2,
+              1.2,
+              0
             ],
-            "rotation": 0.0,
-            "scale": 1.0
-          }
-        }
-      ],
-      "expressions": [
-        {
-          "id": "eq",
-          "source": "tau = J(theta).T @ F",
-          "terms": {
-            "Jt": "J(theta).T"
+            "rotation": 0,
+            "scale": 1
           },
-          "bindings": {
-            "theta": {
-              "kind": "literal",
-              "value": 0.6
-            }
-          },
-          "highlights": [
-            "J(theta).T"
-          ]
-        }
-      ],
-      "values": [
+          "type": "presentation.metric_card"
+        },
         {
-          "id": "energy",
-          "source": {
-            "kind": "derived",
-            "expr": "a * b + 1",
-            "inputs": {
-              "a": {
-                "kind": "literal",
-                "value": 2
+          "id": "graph",
+          "properties": {
+            "edges": [
+              {
+                "from": "a",
+                "to": "b",
+                "weight": 0.7
               },
-              "b": {
-                "kind": "literal",
-                "value": 3
+              {
+                "directed": true,
+                "from": "b",
+                "to": "c",
+                "weight": 1
               }
-            }
+            ],
+            "layout": "circle",
+            "nodes": [
+              {
+                "id": "a",
+                "label": "A"
+              },
+              {
+                "color": "accent2",
+                "id": "b",
+                "label": "B"
+              },
+              {
+                "id": "c",
+                "label": "C"
+              }
+            ]
           },
-          "format": "E = {value:.2f}"
+          "transform": {
+            "position": [
+              0,
+              -1.8,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "graph.network"
         }
       ],
-      "relationships": [
-        {
-          "id": "link",
-          "kind": "arrow",
-          "sources": [
-            "panel",
-            "eq"
-          ],
-          "live": true
-        }
-      ],
-      "bindings": {
-        "theta": {
-          "kind": "literal",
-          "value": 0.6
-        }
+      "relationships": [],
+      "sceneType": "scene_2d",
+      "schema": "sci-ir/1",
+      "state": {
+        "derived": [
+          {
+            "expr": "x / 2",
+            "id": "speed",
+            "inputs": {
+              "x": "x"
+            }
+          }
+        ],
+        "machines": [
+          {
+            "id": "gd",
+            "initial": "initial",
+            "states": [
+              {
+                "id": "initial",
+                "label": "Initial"
+              },
+              {
+                "id": "updated",
+                "label": "Updated"
+              }
+            ],
+            "transitions": [
+              {
+                "id": "t1",
+                "sets": {
+                  "x": 4
+                },
+                "source": "initial",
+                "target": "updated",
+                "trigger": "step"
+              }
+            ]
+          }
+        ],
+        "symbols": [
+          {
+            "driver": {
+              "kind": "warp"
+            },
+            "id": "x",
+            "kind": "scalar",
+            "value": 0
+          }
+        ]
       },
       "timeline": [
         {
-          "id": "s1",
-          "title": "Intro",
+          "id": "run",
           "steps": [
             {
               "op": "show",
-              "target": "panel"
+              "target": "stage_panel"
             },
             {
-              "op": "play",
-              "target": "eq",
-              "animation": "write",
-              "duration": 1.5
-            },
-            {
-              "op": "highlight",
-              "target": "eq",
-              "duration": 1.0,
+              "duration": 2,
+              "op": "interpolate",
               "properties": {
-                "color": "warn"
-              }
+                "to": 10
+              },
+              "target": "x"
             },
             {
-              "op": "custom",
-              "code": "print('boundary')"
+              "op": "set",
+              "properties": {
+                "value": 3
+              },
+              "target": "x"
+            },
+            {
+              "duration": 1,
+              "op": "transition",
+              "properties": {
+                "to": "updated"
+              },
+              "target": "gd"
+            },
+            {
+              "duration": 2,
+              "op": "compare",
+              "target": "cmp"
+            },
+            {
+              "duration": 1,
+              "op": "highlight",
+              "properties": {
+                "behaviors": [
+                  "focus",
+                  "dim_others"
+                ],
+                "color": "warn"
+              },
+              "target": "graph"
+            },
+            {
+              "code": "print('suprepto boundary')",
+              "op": "custom"
             }
-          ]
+          ],
+          "title": "Run"
         }
-      ]
-    },
-    "expectValid": false
+      ],
+      "title": "Suprepto Demo",
+      "values": []
+    }
+  },
+  {
+    "name": "bad_machine_initial",
+    "expectValid": false,
+    "document": {
+      "annotations": [
+        {
+          "format": "v = {value:.2f}",
+          "id": "live_speed",
+          "provider": "speed",
+          "target": "stage_panel"
+        }
+      ],
+      "comparisons": [
+        {
+          "id": "cmp",
+          "kind": "before_after",
+          "metrics": [
+            {
+              "a": 1,
+              "b": 2.5,
+              "deltaFormat": "{delta:+.2f}",
+              "format": "{value}",
+              "label": "score"
+            }
+          ],
+          "title": "Score change"
+        }
+      ],
+      "expressions": [],
+      "id": "suprepto_demo",
+      "objects": [
+        {
+          "id": "stage_panel",
+          "properties": {
+            "height": 2.5,
+            "width": 5
+          },
+          "type": "ui.panel"
+        },
+        {
+          "id": "readout",
+          "properties": {
+            "format": "{value:.1f}",
+            "provider": "x",
+            "title": "x"
+          },
+          "transform": {
+            "position": [
+              2.2,
+              1.2,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "presentation.metric_card"
+        },
+        {
+          "id": "graph",
+          "properties": {
+            "edges": [
+              {
+                "from": "a",
+                "to": "b",
+                "weight": 0.7
+              },
+              {
+                "directed": true,
+                "from": "b",
+                "to": "c",
+                "weight": 1
+              }
+            ],
+            "layout": "circle",
+            "nodes": [
+              {
+                "id": "a",
+                "label": "A"
+              },
+              {
+                "color": "accent2",
+                "id": "b",
+                "label": "B"
+              },
+              {
+                "id": "c",
+                "label": "C"
+              }
+            ]
+          },
+          "transform": {
+            "position": [
+              0,
+              -1.8,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "graph.network"
+        }
+      ],
+      "relationships": [],
+      "sceneType": "scene_2d",
+      "schema": "sci-ir/1",
+      "state": {
+        "derived": [
+          {
+            "expr": "x / 2",
+            "id": "speed",
+            "inputs": {
+              "x": "x"
+            }
+          }
+        ],
+        "machines": [
+          {
+            "id": "gd",
+            "initial": "nowhere",
+            "states": [
+              {
+                "id": "initial",
+                "label": "Initial"
+              },
+              {
+                "id": "updated",
+                "label": "Updated"
+              }
+            ],
+            "transitions": [
+              {
+                "id": "t1",
+                "sets": {
+                  "x": 4
+                },
+                "source": "initial",
+                "target": "updated",
+                "trigger": "step"
+              }
+            ]
+          }
+        ],
+        "symbols": [
+          {
+            "driver": {
+              "easing": "linear",
+              "keyframes": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  10
+                ]
+              ],
+              "kind": "keyframes"
+            },
+            "id": "x",
+            "kind": "scalar",
+            "value": 0
+          }
+        ]
+      },
+      "timeline": [
+        {
+          "id": "run",
+          "steps": [
+            {
+              "op": "show",
+              "target": "stage_panel"
+            },
+            {
+              "duration": 2,
+              "op": "interpolate",
+              "properties": {
+                "to": 10
+              },
+              "target": "x"
+            },
+            {
+              "op": "set",
+              "properties": {
+                "value": 3
+              },
+              "target": "x"
+            },
+            {
+              "duration": 1,
+              "op": "transition",
+              "properties": {
+                "to": "updated"
+              },
+              "target": "gd"
+            },
+            {
+              "duration": 2,
+              "op": "compare",
+              "target": "cmp"
+            },
+            {
+              "duration": 1,
+              "op": "highlight",
+              "properties": {
+                "behaviors": [
+                  "focus",
+                  "dim_others"
+                ],
+                "color": "warn"
+              },
+              "target": "graph"
+            },
+            {
+              "code": "print('suprepto boundary')",
+              "op": "custom"
+            }
+          ],
+          "title": "Run"
+        }
+      ],
+      "title": "Suprepto Demo",
+      "values": []
+    }
+  },
+  {
+    "name": "bad_comparison_kind",
+    "expectValid": false,
+    "document": {
+      "annotations": [
+        {
+          "format": "v = {value:.2f}",
+          "id": "live_speed",
+          "provider": "speed",
+          "target": "stage_panel"
+        }
+      ],
+      "comparisons": [
+        {
+          "id": "cmp",
+          "kind": "sideways",
+          "metrics": [
+            {
+              "a": 1,
+              "b": 2.5,
+              "deltaFormat": "{delta:+.2f}",
+              "format": "{value}",
+              "label": "score"
+            }
+          ],
+          "title": "Score change"
+        }
+      ],
+      "expressions": [],
+      "id": "suprepto_demo",
+      "objects": [
+        {
+          "id": "stage_panel",
+          "properties": {
+            "height": 2.5,
+            "width": 5
+          },
+          "type": "ui.panel"
+        },
+        {
+          "id": "readout",
+          "properties": {
+            "format": "{value:.1f}",
+            "provider": "x",
+            "title": "x"
+          },
+          "transform": {
+            "position": [
+              2.2,
+              1.2,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "presentation.metric_card"
+        },
+        {
+          "id": "graph",
+          "properties": {
+            "edges": [
+              {
+                "from": "a",
+                "to": "b",
+                "weight": 0.7
+              },
+              {
+                "directed": true,
+                "from": "b",
+                "to": "c",
+                "weight": 1
+              }
+            ],
+            "layout": "circle",
+            "nodes": [
+              {
+                "id": "a",
+                "label": "A"
+              },
+              {
+                "color": "accent2",
+                "id": "b",
+                "label": "B"
+              },
+              {
+                "id": "c",
+                "label": "C"
+              }
+            ]
+          },
+          "transform": {
+            "position": [
+              0,
+              -1.8,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "graph.network"
+        }
+      ],
+      "relationships": [],
+      "sceneType": "scene_2d",
+      "schema": "sci-ir/1",
+      "state": {
+        "derived": [
+          {
+            "expr": "x / 2",
+            "id": "speed",
+            "inputs": {
+              "x": "x"
+            }
+          }
+        ],
+        "machines": [
+          {
+            "id": "gd",
+            "initial": "initial",
+            "states": [
+              {
+                "id": "initial",
+                "label": "Initial"
+              },
+              {
+                "id": "updated",
+                "label": "Updated"
+              }
+            ],
+            "transitions": [
+              {
+                "id": "t1",
+                "sets": {
+                  "x": 4
+                },
+                "source": "initial",
+                "target": "updated",
+                "trigger": "step"
+              }
+            ]
+          }
+        ],
+        "symbols": [
+          {
+            "driver": {
+              "easing": "linear",
+              "keyframes": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  10
+                ]
+              ],
+              "kind": "keyframes"
+            },
+            "id": "x",
+            "kind": "scalar",
+            "value": 0
+          }
+        ]
+      },
+      "timeline": [
+        {
+          "id": "run",
+          "steps": [
+            {
+              "op": "show",
+              "target": "stage_panel"
+            },
+            {
+              "duration": 2,
+              "op": "interpolate",
+              "properties": {
+                "to": 10
+              },
+              "target": "x"
+            },
+            {
+              "op": "set",
+              "properties": {
+                "value": 3
+              },
+              "target": "x"
+            },
+            {
+              "duration": 1,
+              "op": "transition",
+              "properties": {
+                "to": "updated"
+              },
+              "target": "gd"
+            },
+            {
+              "duration": 2,
+              "op": "compare",
+              "target": "cmp"
+            },
+            {
+              "duration": 1,
+              "op": "highlight",
+              "properties": {
+                "behaviors": [
+                  "focus",
+                  "dim_others"
+                ],
+                "color": "warn"
+              },
+              "target": "graph"
+            },
+            {
+              "code": "print('suprepto boundary')",
+              "op": "custom"
+            }
+          ],
+          "title": "Run"
+        }
+      ],
+      "title": "Suprepto Demo",
+      "values": []
+    }
+  },
+  {
+    "name": "bad_annotation_provider",
+    "expectValid": false,
+    "document": {
+      "annotations": [
+        {
+          "format": "v = {value:.2f}",
+          "id": "live_speed",
+          "provider": "phantom",
+          "target": "stage_panel"
+        }
+      ],
+      "comparisons": [
+        {
+          "id": "cmp",
+          "kind": "before_after",
+          "metrics": [
+            {
+              "a": 1,
+              "b": 2.5,
+              "deltaFormat": "{delta:+.2f}",
+              "format": "{value}",
+              "label": "score"
+            }
+          ],
+          "title": "Score change"
+        }
+      ],
+      "expressions": [],
+      "id": "suprepto_demo",
+      "objects": [
+        {
+          "id": "stage_panel",
+          "properties": {
+            "height": 2.5,
+            "width": 5
+          },
+          "type": "ui.panel"
+        },
+        {
+          "id": "readout",
+          "properties": {
+            "format": "{value:.1f}",
+            "provider": "x",
+            "title": "x"
+          },
+          "transform": {
+            "position": [
+              2.2,
+              1.2,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "presentation.metric_card"
+        },
+        {
+          "id": "graph",
+          "properties": {
+            "edges": [
+              {
+                "from": "a",
+                "to": "b",
+                "weight": 0.7
+              },
+              {
+                "directed": true,
+                "from": "b",
+                "to": "c",
+                "weight": 1
+              }
+            ],
+            "layout": "circle",
+            "nodes": [
+              {
+                "id": "a",
+                "label": "A"
+              },
+              {
+                "color": "accent2",
+                "id": "b",
+                "label": "B"
+              },
+              {
+                "id": "c",
+                "label": "C"
+              }
+            ]
+          },
+          "transform": {
+            "position": [
+              0,
+              -1.8,
+              0
+            ],
+            "rotation": 0,
+            "scale": 1
+          },
+          "type": "graph.network"
+        }
+      ],
+      "relationships": [],
+      "sceneType": "scene_2d",
+      "schema": "sci-ir/1",
+      "state": {
+        "derived": [
+          {
+            "expr": "x / 2",
+            "id": "speed",
+            "inputs": {
+              "x": "x"
+            }
+          }
+        ],
+        "machines": [
+          {
+            "id": "gd",
+            "initial": "initial",
+            "states": [
+              {
+                "id": "initial",
+                "label": "Initial"
+              },
+              {
+                "id": "updated",
+                "label": "Updated"
+              }
+            ],
+            "transitions": [
+              {
+                "id": "t1",
+                "sets": {
+                  "x": 4
+                },
+                "source": "initial",
+                "target": "updated",
+                "trigger": "step"
+              }
+            ]
+          }
+        ],
+        "symbols": [
+          {
+            "driver": {
+              "easing": "linear",
+              "keyframes": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  2,
+                  10
+                ]
+              ],
+              "kind": "keyframes"
+            },
+            "id": "x",
+            "kind": "scalar",
+            "value": 0
+          }
+        ]
+      },
+      "timeline": [
+        {
+          "id": "run",
+          "steps": [
+            {
+              "op": "show",
+              "target": "stage_panel"
+            },
+            {
+              "duration": 2,
+              "op": "interpolate",
+              "properties": {
+                "to": 10
+              },
+              "target": "x"
+            },
+            {
+              "op": "set",
+              "properties": {
+                "value": 3
+              },
+              "target": "x"
+            },
+            {
+              "duration": 1,
+              "op": "transition",
+              "properties": {
+                "to": "updated"
+              },
+              "target": "gd"
+            },
+            {
+              "duration": 2,
+              "op": "compare",
+              "target": "cmp"
+            },
+            {
+              "duration": 1,
+              "op": "highlight",
+              "properties": {
+                "behaviors": [
+                  "focus",
+                  "dim_others"
+                ],
+                "color": "warn"
+              },
+              "target": "graph"
+            },
+            {
+              "code": "print('suprepto boundary')",
+              "op": "custom"
+            }
+          ],
+          "title": "Run"
+        }
+      ],
+      "title": "Suprepto Demo",
+      "values": []
+    }
   }
 ]

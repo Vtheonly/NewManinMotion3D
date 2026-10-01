@@ -9,65 +9,29 @@
     {
       "id": "wall",
       "properties": {
-        "cellHeight": 1.5,
         "cellWidth": 1.5,
-        "columns": 3,
+        "columns": 4,
         "gap": 0.24,
-        "rows": 2
+        "rows": 3
       },
       "type": "ui.grid"
     },
     {
-      "id": "prot_0",
+      "id": "banner",
       "properties": {
-        "representation": "trace",
-        "residues": 18,
-        "seed": 3
-      },
-      "transform": {
-        "position": [
-          -1,
-          0.5,
-          0
-        ],
-        "rotation": 0,
-        "scale": 0.5
-      },
-      "type": "biology.protein"
-    },
-    {
-      "id": "stamp_0",
-      "properties": {
-        "verdict": "fail"
-      },
-      "transform": {
-        "position": [
-          -1,
-          -0.6,
-          0
-        ],
-        "rotation": 0,
-        "scale": 0.62
-      },
-      "type": "ui.stamp"
-    },
-    {
-      "id": "prot_1",
-      "properties": {
-        "representation": "trace",
-        "residues": 22,
-        "seed": 4
+        "height": 1.1,
+        "width": 10
       },
       "transform": {
         "position": [
           0,
-          0.5,
+          3.4,
           0
         ],
         "rotation": 0,
-        "scale": 0.5
+        "scale": 1
       },
-      "type": "biology.protein"
+      "type": "ui.panel"
     },
     {
       "id": "stamp_1",
@@ -76,46 +40,12 @@
       },
       "transform": {
         "position": [
-          0,
-          -0.6,
-          0
-        ],
-        "rotation": 0,
-        "scale": 0.62
-      },
-      "type": "ui.stamp"
-    },
-    {
-      "id": "prot_2",
-      "properties": {
-        "representation": "trace",
-        "residues": 26,
-        "seed": 5
-      },
-      "transform": {
-        "position": [
           1,
-          0.5,
+          -1,
           0
         ],
         "rotation": 0,
-        "scale": 0.5
-      },
-      "type": "biology.protein"
-    },
-    {
-      "id": "stamp_2",
-      "properties": {
-        "verdict": "fail"
-      },
-      "transform": {
-        "position": [
-          1,
-          -0.6,
-          0
-        ],
-        "rotation": 0,
-        "scale": 0.62
+        "scale": 1
       },
       "type": "ui.stamp"
     },
@@ -129,15 +59,6 @@
         ],
         "seed": 11
       },
-      "transform": {
-        "position": [
-          4.5,
-          0,
-          0
-        ],
-        "rotation": 0,
-        "scale": 0.85
-      },
       "type": "nn.network"
     }
   ],
@@ -146,44 +67,32 @@
   "schema": "sci-ir/1",
   "timeline": [
     {
-      "id": "reveal",
+      "id": "intro",
       "steps": [
         {
           "op": "show",
           "target": "wall"
         },
         {
-          "animation": "grow",
-          "duration": 0.6,
+          "animation": "fade_in",
+          "duration": 1.2,
           "op": "play",
-          "rate": "smooth",
-          "target": "stamp_0"
-        },
-        {
-          "animation": "grow",
-          "duration": 0.6,
-          "op": "play",
-          "rate": "smooth",
-          "target": "stamp_1"
-        },
-        {
-          "animation": "grow",
-          "duration": 0.6,
-          "op": "play",
-          "rate": "smooth",
-          "target": "stamp_2"
-        },
-        {
-          "duration": 2,
-          "op": "camera",
-          "properties": {
-            "zoom": 1.12
-          }
+          "target": "banner"
         }
       ],
-      "title": "Reveal"
+      "title": "The Wall"
     }
   ],
   "title": "Wall Demo",
-  "values": []
+  "values": [
+    {
+      "format": "\u0394G = {value:.2f} kcal/mol",
+      "id": "hero_energy",
+      "source": {
+        "key": "energy",
+        "kind": "data",
+        "ref": "synth/protein.json"
+      }
+    }
+  ]
 }

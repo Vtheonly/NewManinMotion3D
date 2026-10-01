@@ -1,0 +1,220 @@
+{
+  "annotations": [
+    {
+      "format": "v = {value:.2f}",
+      "id": "live_speed",
+      "provider": "speed",
+      "target": "stage_panel"
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "cmp",
+      "kind": "before_after",
+      "metrics": [
+        {
+          "a": 1,
+          "b": 2.5,
+          "deltaFormat": "{delta:+.2f}",
+          "format": "{value}",
+          "label": "score"
+        }
+      ],
+      "title": "Score change"
+    }
+  ],
+  "expressions": [],
+  "id": "suprepto_demo",
+  "objects": [
+    {
+      "id": "stage_panel",
+      "properties": {
+        "height": 2.5,
+        "width": 5
+      },
+      "type": "ui.panel"
+    },
+    {
+      "id": "readout",
+      "properties": {
+        "format": "{value:.1f}",
+        "provider": "x",
+        "title": "x"
+      },
+      "transform": {
+        "position": [
+          2.2,
+          1.2,
+          0
+        ],
+        "rotation": 0,
+        "scale": 1
+      },
+      "type": "presentation.metric_card"
+    },
+    {
+      "id": "graph",
+      "properties": {
+        "edges": [
+          {
+            "from": "a",
+            "to": "b",
+            "weight": 0.7
+          },
+          {
+            "directed": true,
+            "from": "b",
+            "to": "c",
+            "weight": 1
+          }
+        ],
+        "layout": "circle",
+        "nodes": [
+          {
+            "id": "a",
+            "label": "A"
+          },
+          {
+            "color": "accent2",
+            "id": "b",
+            "label": "B"
+          },
+          {
+            "id": "c",
+            "label": "C"
+          }
+        ]
+      },
+      "transform": {
+        "position": [
+          0,
+          -1.8,
+          0
+        ],
+        "rotation": 0,
+        "scale": 1
+      },
+      "type": "graph.network"
+    }
+  ],
+  "relationships": [],
+  "sceneType": "scene_2d",
+  "schema": "sci-ir/1",
+  "state": {
+    "derived": [
+      {
+        "expr": "x / 2",
+        "id": "speed",
+        "inputs": {
+          "x": "x"
+        }
+      }
+    ],
+    "machines": [
+      {
+        "id": "gd",
+        "initial": "initial",
+        "states": [
+          {
+            "id": "initial",
+            "label": "Initial"
+          },
+          {
+            "id": "updated",
+            "label": "Updated"
+          }
+        ],
+        "transitions": [
+          {
+            "id": "t1",
+            "sets": {
+              "x": 4
+            },
+            "source": "initial",
+            "target": "updated",
+            "trigger": "step"
+          }
+        ]
+      }
+    ],
+    "symbols": [
+      {
+        "driver": {
+          "easing": "linear",
+          "keyframes": [
+            [
+              0,
+              0
+            ],
+            [
+              2,
+              10
+            ]
+          ],
+          "kind": "keyframes"
+        },
+        "id": "x",
+        "kind": "scalar",
+        "value": 0
+      }
+    ]
+  },
+  "timeline": [
+    {
+      "id": "run",
+      "steps": [
+        {
+          "op": "show",
+          "target": "stage_panel"
+        },
+        {
+          "duration": 2,
+          "op": "interpolate",
+          "properties": {
+            "to": 10
+          },
+          "target": "x"
+        },
+        {
+          "op": "set",
+          "properties": {
+            "value": 3
+          },
+          "target": "x"
+        },
+        {
+          "duration": 1,
+          "op": "transition",
+          "properties": {
+            "to": "updated"
+          },
+          "target": "gd"
+        },
+        {
+          "duration": 2,
+          "op": "compare",
+          "target": "cmp"
+        },
+        {
+          "duration": 1,
+          "op": "highlight",
+          "properties": {
+            "behaviors": [
+              "focus",
+              "dim_others"
+            ],
+            "color": "warn"
+          },
+          "target": "graph"
+        },
+        {
+          "code": "print('suprepto boundary')",
+          "op": "custom"
+        }
+      ],
+      "title": "Run"
+    }
+  ],
+  "title": "Suprepto Demo",
+  "values": []
+}

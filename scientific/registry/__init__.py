@@ -117,4 +117,7 @@ __all__ = [
 
 
 # Populate built-ins (must come after the API above is defined).
-from . import builtin_core, builtin_domains  # noqa: E402,F401  (side effects)
+from . import (  # noqa: E402,F401  (side effects)
+    builtin_core, builtin_domains, builtin_graphs, builtin_math,
+    builtin_presentation,
+)

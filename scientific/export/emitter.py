@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from ..ir.document import SceneDocument
 from .emitter_parts import emit_expr, emit_node, emit_step
+from .emitter_state import emit_state_sections
 from .literals import py_literal
 
 BASE_CLASSES = {
@@ -50,6 +51,7 @@ def emit(document: SceneDocument) -> str:
     w(f"        camera={py_literal(document.camera) if document.camera else 'None'},")
     w(f"    )")
     _emit_objects(w, document)
+    emit_state_sections(w, document)
     for value in document.values.values():
         w(f"    scene.live_value({py_literal(value.id)}, "
           f"{py_literal(value.source)}, format={py_literal(value.format)})")

@@ -48,18 +48,22 @@ def _scene_classes(module):
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m scientific.run",
-        description="Render a scientific scene file through Manim CE.")
+        description="Render a Suprepto scene file through Manim CE.")
     parser.add_argument("file", help="path to a .py scene file")
     parser.add_argument("scene", nargs="?", default=None,
                         help="scene class name (default: first found)")
     parser.add_argument("--list", action="store_true",
-                        help="list scene classes and exit")
+                        help="list scene classes")
     parser.add_argument("--quality", choices=sorted(QUALITY_FLAGS),
                         default="low")
     parser.add_argument("--media_dir", default=None,
                         help="override manim media output directory")
     parser.add_argument("--dry_run", action="store_true",
-                        help="build the scene document only (no render)")
+                        help="build document only, no render")
+    parser.add_argument("--diagnostics", action="store_true",
+                        help="write diagnostics.json next to the render")
+    parser.add_argument("--verify", action="store_true",
+                        help="render twice, compare frame hashes")
     args = parser.parse_args(argv)
 
     path = Path(args.file).resolve()
@@ -70,30 +74,41 @@ def main(argv=None) -> int:
 
     if args.list:
         names = [name for name, _ in _scene_classes(module)]
-        print("\n".join(names) if names else "(no scientific scenes found)")
+        print("\n".join(names) or "(no scientific scenes found)")
         return 0
 
     scenes = _scene_classes(module)
     if not scenes:
         print(f"error: no scientific scene classes in {path}", file=sys.stderr)
         return 3
-    if args.scene:
-        match = [cls for name, cls in scenes if name == args.scene]
-        if not match:
-            available = ", ".join(n for n, _ in scenes)
-            print(f"error: scene {args.scene!r} not found "
-                  f"(available: {available})", file=sys.stderr)
-            return 4
-    else:
-        match = [scenes[0][1]]
+    match = ([cls for name, cls in scenes if name == args.scene]
+            if args.scene else [scenes[0][1]])
+    if not match:
+        available = ", ".join(n for n, _ in scenes)
+        print(f"error: scene {args.scene!r} not found "
+              f"(available: {available})", file=sys.stderr)
+        return 4
 
     scene_cls = match[0]
-    if args.dry_run:
+    document = None
+    if args.dry_run or args.verify or args.diagnostics:
         document = _document_of(scene_cls)
+    if args.dry_run:
         print(f"document {document.id!r}: {len(document.objects)} objects, "
               f"{len(document.timeline)} stages, valid="
               f"{not _validate(document)}")
         return 0
+
+    if args.verify:
+        from .verify import verify_document_render
+        report = verify_document_render(
+            path, scene_cls.__name__, quality=args.quality,
+            media_dir=args.media_dir)
+        ok = report["reproducible"] and not report["validationErrors"]
+        print(f"[verify] deterministic={report['reproducible']} "
+              f"hash={report['hash'][:12]}… bytes={report['bytes']} "
+              f"validation={len(report['validationErrors'])} errors")
+        return 0 if ok else 5
 
     cmd = [sys.executable, "-m", "manim", QUALITY_FLAGS[args.quality]]
     if args.media_dir:
@@ -101,27 +116,34 @@ def main(argv=None) -> int:
     cmd += [str(path), scene_cls.__name__]
     env = dict(os.environ)
     env["PYTHONPATH"] = os.pathsep.join(
-        p for p in (str(path.parents[1] if path.parent.name == "scenes"
-                        else path.parent.parent), env.get("PYTHONPATH")) if p)
-    print(f"[scientific.run] {' '.join(cmd)}")
+        p for p in (str(_repo_root(path)), env.get("PYTHONPATH")) if p)
+    print("[scientific.run] " + " ".join(cmd))
     completed = subprocess.run(cmd, env=env, cwd=str(path.parent))
     return completed.returncode
+
+
+def _repo_root(scene_path: Path) -> Path:
+    """Walk up from a scene file until the scientific package is visible."""
+    for candidate in (scene_path.parent, *scene_path.parents):
+        if (candidate / "scientific" / "__init__.py").is_file():
+            return candidate
+    return scene_path.parent
 
 
 def _document_of(scene_cls):
     from .ir.document import SceneDocument
     from .runtime.authoring import ScientificScene
     scene = scene_cls().get_scene()
-    if isinstance(scene, SceneDocument):
-        return scene
-    if isinstance(scene, ScientificScene):
-        return scene.document
+    if isinstance(scene, (SceneDocument, ScientificScene)):
+        return getattr(scene, "document", scene)
     raise TypeError("get_scene() must return a ScientificScene or document")
 
 
 def _validate(document) -> list:
     from .ir import validate_document
     return validate_document(document)
+
+
 
 
 if __name__ == "__main__":

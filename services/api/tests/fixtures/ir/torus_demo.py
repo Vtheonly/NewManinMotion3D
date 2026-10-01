@@ -13,15 +13,16 @@ def build() -> ScientificScene:
         "torus_demo",
         title="Torus Demo",
         scene_type="three_d",
-        camera={"distance": 11, "phi": 70, "theta": -40},
+        camera={"phi": 70, "theta": -40},
     )
-    scene.node("kinematics.torus", "torus", dt=0.045, majorRadius=2.4, minorRadius=0.85, steps=80, space="world3d")
-    scene.node("kinematics.chain", "chain", linkLength=0.9, thetas=[0.9, -0.55, 0.35, 0.15], space="world3d", position=[2.2, 0, 0])
-    scene.node("kinematics.obstacle", "obstacle", center=[1.85, 0.75, 0.45], radius=0.72, space="world3d")
-    scene.live_value("hero", {"key": "energy", "kind": "data", "ref": "synth/protein.json"}, format="ΔG = {value:.2f}")
+    scene.node("kinematics.torus", "torus", dt=0.045, majorRadius=2.2, minorRadius=0.8, steps=90)
+    scene.node("kinematics.chain", "chain", linkLength=0.9, thetas=[0.3, 0.5, 0.2])
+    scene.node("kinematics.jacobian", "jac", position=[0, 0, 0], scale=0.55)
+    scene.node("kinematics.obstacle", "obstacle", center=[1, 0.5, 0.3], radius=0.55)
     with scene.stage(stage_id="flow", title="Flow") as st:
-        st.play("torus", "create", duration=2)
-        st.camera({"orbit": 0.18}, duration=3.2)
+        st.show("torus")
+        st.play("chain", "create", duration=2)
+        st.highlight("chain", color="warn", duration=1)
     return scene
 
 

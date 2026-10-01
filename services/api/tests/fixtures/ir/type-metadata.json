@@ -1,514 +1,920 @@
 [
   {
-    "category": "core",
-    "description": "Logical/visual grouping container for child artifacts.",
-    "dimensionality": "2d",
     "key": "core.group",
     "label": "Group",
+    "category": "core",
+    "dimensionality": "2d",
+    "description": "Logical/visual grouping container for child artifacts.",
     "properties": {
       "title": {
-        "description": "optional group caption",
-        "type": "str"
+        "type": "str",
+        "description": "optional group caption"
       }
     }
   },
   {
-    "category": "core",
-    "description": "Editable text or caption.",
-    "dimensionality": "2d",
     "key": "text.label",
     "label": "Text Label",
+    "category": "core",
+    "dimensionality": "2d",
+    "description": "Editable text or caption.",
     "properties": {
-      "color": {
-        "default": "fg",
-        "description": "palette token or hex",
-        "type": "str"
+      "text": {
+        "type": "str",
+        "required": true,
+        "description": "label content"
       },
       "fontSize": {
+        "type": "float",
         "default": 28,
-        "description": "manim font size",
-        "type": "float"
+        "description": "manim font size"
       },
-      "text": {
-        "description": "label content",
-        "required": true,
-        "type": "str"
+      "color": {
+        "type": "str",
+        "default": "fg",
+        "description": "palette token or hex"
       },
       "weight": {
-        "default": "normal",
+        "type": "str",
         "enum": [
           "normal",
           "bold"
         ],
-        "type": "str"
+        "default": "normal"
       }
     }
   },
   {
-    "category": "ui",
-    "description": "Rounded background panel/banner with optional title.",
-    "dimensionality": "2d",
     "key": "ui.panel",
     "label": "Panel",
+    "category": "ui",
+    "dimensionality": "2d",
+    "description": "Rounded background panel/banner with optional title.",
     "properties": {
-      "fill": {
-        "default": "panel",
-        "type": "str"
+      "width": {
+        "type": "float",
+        "default": 6.0
       },
       "height": {
-        "default": 3.0,
-        "type": "float"
+        "type": "float",
+        "default": 3.0
       },
-      "radius": {
-        "default": 0.18,
-        "type": "float"
+      "fill": {
+        "type": "str",
+        "default": "panel"
       },
       "stroke": {
-        "default": "border",
-        "type": "str"
+        "type": "str",
+        "default": "border"
+      },
+      "radius": {
+        "type": "float",
+        "default": 0.18
       },
       "title": {
         "type": "str"
-      },
-      "width": {
-        "default": 6.0,
-        "type": "float"
       }
     }
   },
   {
-    "category": "ui",
-    "description": "Cell layout grid used by walls/arrays of artifacts.",
-    "dimensionality": "2d",
     "key": "ui.grid",
     "label": "Grid",
+    "category": "ui",
+    "dimensionality": "2d",
+    "description": "Cell layout grid used by walls/arrays of artifacts.",
     "properties": {
-      "cellHeight": {
-        "default": 1.5,
-        "type": "float"
-      },
-      "cellWidth": {
-        "default": 1.5,
-        "type": "float"
-      },
       "columns": {
-        "min": 1,
+        "type": "int",
         "required": true,
-        "type": "int"
-      },
-      "gap": {
-        "default": 0.2,
-        "type": "float"
+        "min": 1
       },
       "rows": {
-        "min": 1,
+        "type": "int",
         "required": true,
-        "type": "int"
+        "min": 1
+      },
+      "cellWidth": {
+        "type": "float",
+        "default": 1.5
+      },
+      "cellHeight": {
+        "type": "float",
+        "default": 1.5
+      },
+      "gap": {
+        "type": "float",
+        "default": 0.2
       }
     }
   },
   {
-    "category": "ui",
-    "description": "OK/FAIL validation stamp for candidate artifacts.",
-    "dimensionality": "2d",
     "key": "ui.stamp",
     "label": "Validation Stamp",
+    "category": "ui",
+    "dimensionality": "2d",
+    "description": "OK/FAIL validation stamp for candidate artifacts.",
     "properties": {
-      "label": {
-        "type": "str"
-      },
       "verdict": {
+        "type": "str",
         "enum": [
           "ok",
           "fail"
         ],
-        "required": true,
+        "required": true
+      },
+      "label": {
         "type": "str"
       }
     }
   },
   {
-    "category": "ui",
-    "description": "Small colored pill with short text (scores, tags).",
-    "dimensionality": "2d",
     "key": "ui.badge",
     "label": "Badge",
+    "category": "ui",
+    "dimensionality": "2d",
+    "description": "Small colored pill with short text (scores, tags).",
     "properties": {
       "text": {
-        "required": true,
-        "type": "str"
+        "type": "str",
+        "required": true
       },
       "tone": {
-        "default": "info",
+        "type": "str",
         "enum": [
           "ok",
           "warn",
           "fail",
           "info"
         ],
-        "type": "str"
+        "default": "info"
       }
     }
   },
   {
-    "category": "math",
-    "description": "Structured LaTeX expression with terms/bindings/highlights.",
-    "dimensionality": "2d",
     "key": "math.formula",
     "label": "Formula",
+    "category": "math",
+    "dimensionality": "2d",
+    "description": "Structured LaTeX expression with terms/bindings/highlights.",
     "properties": {
-      "fontSize": {
-        "default": 44,
-        "type": "float"
-      },
       "source": {
-        "required": true,
-        "type": "str"
+        "type": "str",
+        "required": true
+      },
+      "fontSize": {
+        "type": "float",
+        "default": 44
       }
     }
   },
   {
-    "category": "math",
-    "description": "Coordinate axes with ranges for curves/plots.",
-    "dimensionality": "2d",
     "key": "math.axes",
     "label": "Axes",
+    "category": "math",
+    "dimensionality": "2d",
+    "description": "Coordinate axes with ranges for curves/plots.",
     "properties": {
+      "xMin": {
+        "type": "float",
+        "default": -3.0
+      },
+      "xMax": {
+        "type": "float",
+        "default": 3.0
+      },
+      "yMin": {
+        "type": "float",
+        "default": -2.0
+      },
+      "yMax": {
+        "type": "float",
+        "default": 2.0
+      },
       "xLabel": {
         "type": "str"
       },
-      "xMax": {
-        "default": 3.0,
-        "type": "float"
-      },
-      "xMin": {
-        "default": -3.0,
-        "type": "float"
-      },
       "yLabel": {
         "type": "str"
-      },
-      "yMax": {
-        "default": 2.0,
-        "type": "float"
-      },
-      "yMin": {
-        "default": -2.0,
-        "type": "float"
       }
     }
   },
   {
-    "category": "math",
-    "description": "Function curve y=f(x) on an axes artifact.",
-    "dimensionality": "2d",
     "key": "math.curve",
     "label": "Curve",
+    "category": "math",
+    "dimensionality": "2d",
+    "description": "Function curve y=f(x) on an axes artifact.",
     "properties": {
       "axes": {
-        "description": "axes node id",
+        "type": "str",
         "required": true,
-        "type": "str"
-      },
-      "color": {
-        "default": "accent",
-        "type": "str"
+        "description": "axes node id"
       },
       "function": {
-        "description": "safe-evaluator expression of x",
+        "type": "str",
         "required": true,
-        "type": "str"
+        "description": "safe-evaluator expression of x"
+      },
+      "color": {
+        "type": "str",
+        "default": "accent"
       }
     }
   },
   {
-    "category": "math",
-    "description": "Numeric matrix with optional cell heat-coloring.",
-    "dimensionality": "2d",
     "key": "math.matrix",
     "label": "Matrix",
+    "category": "math",
+    "dimensionality": "2d",
+    "description": "Numeric matrix with optional cell heat-coloring.",
     "properties": {
+      "rows": {
+        "type": "list",
+        "required": true
+      },
       "heat": {
+        "type": "bool",
         "default": false,
-        "description": "color cells by value",
-        "type": "bool"
+        "description": "color cells by value"
       },
       "label": {
         "type": "str"
-      },
-      "rows": {
-        "required": true,
-        "type": "list"
       }
     }
   },
   {
-    "category": "biology",
-    "description": "Residue-level protein model (cartoon/trace representations).",
-    "dimensionality": "2d",
     "key": "biology.protein",
     "label": "Protein Structure",
+    "category": "biology",
+    "dimensionality": "2d",
+    "description": "Residue-level protein model (cartoon/trace representations).",
     "properties": {
-      "color": {
-        "default": "accent2",
-        "type": "str"
+      "source": {
+        "type": "str",
+        "description": "DataRef path for residue data"
       },
       "representation": {
-        "default": "cartoon",
+        "type": "str",
         "enum": [
           "cartoon",
           "trace",
           "schematic"
         ],
-        "type": "str"
+        "default": "cartoon"
+      },
+      "seed": {
+        "type": "int",
+        "default": 7,
+        "description": "deterministic fold seed"
       },
       "residues": {
-        "default": 24,
-        "type": "int"
+        "type": "int",
+        "default": 24
       },
-      "seed": {
-        "default": 7,
-        "description": "deterministic fold seed",
-        "type": "int"
-      },
-      "source": {
-        "description": "DataRef path for residue data",
-        "type": "str"
+      "color": {
+        "type": "str",
+        "default": "accent2"
       }
     }
   },
   {
-    "category": "biology",
-    "description": "Amino-acid sequence strip with position mapping.",
-    "dimensionality": "2d",
     "key": "biology.sequence",
     "label": "Sequence",
+    "category": "biology",
+    "dimensionality": "2d",
+    "description": "Amino-acid sequence strip with position mapping.",
     "properties": {
+      "sequence": {
+        "type": "str",
+        "required": true
+      },
       "blockSize": {
-        "default": 0.42,
-        "type": "float"
+        "type": "float",
+        "default": 0.42
       },
       "highlight": {
+        "type": "list",
         "default": [],
-        "description": "residue indices to highlight",
-        "type": "list"
-      },
-      "sequence": {
-        "required": true,
-        "type": "str"
+        "description": "residue indices to highlight"
       }
     }
   },
   {
-    "category": "nn",
-    "description": "Deterministic MLP scoring network with live activations.",
-    "dimensionality": "2d",
     "key": "nn.network",
     "label": "Neural Network",
+    "category": "nn",
+    "dimensionality": "2d",
+    "description": "Deterministic MLP scoring network with live activations.",
     "properties": {
-      "input": {
-        "default": [],
-        "description": "input vector (empty -> zeros)",
-        "type": "list"
-      },
       "layers": {
-        "description": "neuron counts, e.g. [4, 6, 1]",
+        "type": "list",
         "required": true,
-        "type": "list"
+        "description": "neuron counts, e.g. [4, 6, 1]"
       },
       "seed": {
-        "default": 11,
-        "type": "int"
+        "type": "int",
+        "default": 11
+      },
+      "input": {
+        "type": "list",
+        "default": [],
+        "description": "input vector (empty -> zeros)"
       },
       "showActivations": {
-        "default": true,
-        "type": "bool"
+        "type": "bool",
+        "default": true
       }
     }
   },
   {
-    "category": "kinematics",
-    "description": "T^2 manifold with flow field and integrated trajectory.",
-    "dimensionality": "3d",
     "key": "kinematics.torus",
     "label": "Flat Torus Flow",
+    "category": "kinematics",
+    "dimensionality": "3d",
+    "description": "T^2 manifold with flow field and integrated trajectory.",
     "properties": {
-      "dt": {
-        "default": 0.045,
-        "type": "float"
-      },
-      "flowStrength": {
-        "default": 1.0,
-        "type": "float"
-      },
       "majorRadius": {
-        "default": 2.2,
-        "type": "float"
+        "type": "float",
+        "default": 2.2
       },
       "minorRadius": {
-        "default": 0.8,
-        "type": "float"
+        "type": "float",
+        "default": 0.8
+      },
+      "flowStrength": {
+        "type": "float",
+        "default": 1.0
       },
       "steps": {
-        "default": 90,
-        "type": "int"
+        "type": "int",
+        "default": 90
+      },
+      "dt": {
+        "type": "float",
+        "default": 0.045
       }
     }
   },
   {
-    "category": "kinematics",
-    "description": "Serial revolute chain assembled via product of exponentials.",
-    "dimensionality": "3d",
     "key": "kinematics.chain",
     "label": "PoE Kinematic Chain",
+    "category": "kinematics",
+    "dimensionality": "3d",
+    "description": "Serial revolute chain assembled via product of exponentials.",
     "properties": {
-      "linkLength": {
-        "default": 0.9,
-        "type": "float"
-      },
       "thetas": {
-        "required": true,
-        "type": "list"
+        "type": "list",
+        "required": true
+      },
+      "linkLength": {
+        "type": "float",
+        "default": 0.9
       }
     }
   },
   {
-    "category": "kinematics",
-    "description": "Geometric Jacobian column vectors at the end effector.",
-    "dimensionality": "3d",
     "key": "kinematics.jacobian",
     "label": "Jacobian Arrows",
+    "category": "kinematics",
+    "dimensionality": "3d",
+    "description": "Geometric Jacobian column vectors at the end effector.",
     "properties": {
       "scale": {
-        "default": 0.55,
-        "type": "float"
+        "type": "float",
+        "default": 0.55
       }
     }
   },
   {
-    "category": "kinematics",
-    "description": "Spherical obstacle for clash/avoidance demonstrations.",
-    "dimensionality": "3d",
     "key": "kinematics.obstacle",
     "label": "Obstacle",
+    "category": "kinematics",
+    "dimensionality": "3d",
+    "description": "Spherical obstacle for clash/avoidance demonstrations.",
     "properties": {
       "center": {
-        "required": true,
-        "type": "list"
+        "type": "list",
+        "required": true
       },
       "radius": {
-        "default": 0.55,
-        "type": "float"
+        "type": "float",
+        "default": 0.55
       }
     }
   },
   {
-    "category": "attention",
-    "description": "Query-key score matrix with distance bias (softmax).",
-    "dimensionality": "2d",
     "key": "attention.matrix",
     "label": "Attention Heatmap",
+    "category": "attention",
+    "dimensionality": "2d",
+    "description": "Query-key score matrix with distance bias (softmax).",
     "properties": {
-      "distanceBias": {
-        "default": 0.25,
-        "type": "float"
+      "queries": {
+        "type": "list",
+        "required": true
       },
       "keys": {
-        "required": true,
-        "type": "list"
-      },
-      "queries": {
-        "required": true,
-        "type": "list"
+        "type": "list",
+        "required": true
       },
       "temperature": {
-        "default": 1.0,
-        "type": "float"
+        "type": "float",
+        "default": 1.0
+      },
+      "distanceBias": {
+        "type": "float",
+        "default": 0.25
       },
       "topK": {
-        "default": 3,
-        "type": "int"
+        "type": "int",
+        "default": 3
       }
     }
   },
   {
-    "category": "attention",
-    "description": "SO(3) triad anchored in world space (target anchors).",
-    "dimensionality": "3d",
     "key": "attention.frame",
     "label": "Orientation Frame",
+    "category": "attention",
+    "dimensionality": "3d",
+    "description": "SO(3) triad anchored in world space (target anchors).",
     "properties": {
       "euler": {
+        "type": "list",
         "default": [
           0,
           0,
           0
         ],
-        "description": "XYZ Euler degrees",
-        "type": "list"
+        "description": "XYZ Euler degrees"
       },
       "origin": {
+        "type": "list",
         "default": [
           0,
           0,
           0
         ],
-        "description": "world-space anchor position",
-        "type": "list"
+        "description": "world-space anchor position"
       },
       "size": {
-        "default": 0.5,
-        "type": "float"
+        "type": "float",
+        "default": 0.5
       }
     }
   },
   {
-    "category": "attention",
-    "description": "Live weighted edge between two anchored artifacts.",
-    "dimensionality": "3d",
     "key": "attention.link",
     "label": "Attention Link",
+    "category": "attention",
+    "dimensionality": "3d",
+    "description": "Live weighted edge between two anchored artifacts.",
     "properties": {
       "fromId": {
-        "description": "source artifact id",
+        "type": "str",
         "required": true,
-        "type": "str"
+        "description": "source artifact id"
       },
       "toId": {
-        "description": "target artifact id",
+        "type": "str",
         "required": true,
-        "type": "str"
+        "description": "target artifact id"
       },
       "weight": {
-        "default": 1.0,
-        "type": "float"
+        "type": "float",
+        "default": 1.0
       }
     }
   },
   {
-    "category": "presentation",
-    "description": "Camera-independent HUD element (fixed in frame).",
-    "dimensionality": "2d",
     "key": "hud.fixed",
     "label": "Fixed HUD",
+    "category": "presentation",
+    "dimensionality": "2d",
+    "description": "Camera-independent HUD element (fixed in frame).",
     "properties": {
+      "text": {
+        "type": "str",
+        "required": true
+      },
       "corner": {
-        "default": "UL",
+        "type": "str",
         "enum": [
           "UL",
           "UR",
           "LL",
           "LR"
         ],
+        "default": "UL"
+      },
+      "fontSize": {
+        "type": "float",
+        "default": 22
+      }
+    }
+  },
+  {
+    "key": "graph.network",
+    "label": "Graph / Network",
+    "category": "graph",
+    "dimensionality": "2d",
+    "description": "Semantic graph: nodes, edges, weights, layout. Children stay individually addressable (node:/edge: sub-targets).",
+    "properties": {
+      "nodes": {
+        "type": "list",
+        "required": true,
+        "description": "[{id, label?, position?, color?, size?}]"
+      },
+      "edges": {
+        "type": "list",
+        "default": [],
+        "description": "[{from, to, directed?, weight?, label?, color?}]"
+      },
+      "layout": {
+        "type": "str",
+        "enum": [
+          "circle",
+          "layered",
+          "grid",
+          "line",
+          "shell",
+          "manual"
+        ],
+        "default": "circle"
+      },
+      "spacing": {
+        "type": "float",
+        "default": 1.6
+      },
+      "directed": {
+        "type": "bool",
+        "default": false
+      },
+      "showWeights": {
+        "type": "bool",
+        "default": true
+      },
+      "title": {
+        "type": "str"
+      }
+    }
+  },
+  {
+    "key": "graph.state_chart",
+    "label": "State Chart",
+    "category": "graph",
+    "dimensionality": "2d",
+    "description": "Visual state chart of a declared machine (states as rounded nodes, transitions as labeled arrows).",
+    "properties": {
+      "machine": {
+        "type": "str",
+        "required": true,
+        "description": "state machine id from the state section"
+      },
+      "layout": {
+        "type": "str",
+        "enum": [
+          "circle",
+          "layered",
+          "line"
+        ],
+        "default": "layered"
+      },
+      "spacing": {
+        "type": "float",
+        "default": 2.2
+      }
+    }
+  },
+  {
+    "key": "math.vector",
+    "label": "Vector",
+    "category": "math",
+    "dimensionality": "2d",
+    "description": "Arrow vector with optional live magnitude binding.",
+    "properties": {
+      "components": {
+        "type": "list",
+        "required": true,
+        "description": "[x, y] (or [x, y, z]) components"
+      },
+      "color": {
+        "type": "str",
+        "default": "accent"
+      },
+      "text": {
+        "type": "str",
+        "description": "rendered vector label"
+      }
+    }
+  },
+  {
+    "key": "math.number_line",
+    "label": "Number Line",
+    "category": "math",
+    "dimensionality": "2d",
+    "description": "1D axis with ticks and optional highlight interval.",
+    "properties": {
+      "min": {
+        "type": "float",
+        "default": -5.0
+      },
+      "max": {
+        "type": "float",
+        "default": 5.0
+      },
+      "step": {
+        "type": "float",
+        "default": 1.0
+      },
+      "includeTicks": {
+        "type": "bool",
+        "default": true
+      },
+      "unit": {
+        "type": "float",
+        "default": 0.9,
+        "description": "scene units per unit of value"
+      }
+    }
+  },
+  {
+    "key": "math.point",
+    "label": "Point on Axes",
+    "category": "math",
+    "dimensionality": "2d",
+    "description": "Dot placed on an axes artifact at (x, f(x)).",
+    "properties": {
+      "axes": {
+        "type": "str",
+        "required": true,
+        "description": "axes node id"
+      },
+      "x": {
+        "type": "float",
+        "required": true
+      },
+      "function": {
+        "type": "str",
+        "description": "optional y = f(x) (safe expression)"
+      },
+      "y": {
+        "type": "float",
+        "default": 0.0
+      },
+      "color": {
+        "type": "str",
+        "default": "warn"
+      },
+      "text": {
+        "type": "str",
+        "description": "rendered point label"
+      }
+    }
+  },
+  {
+    "key": "math.region",
+    "label": "Region / Interval",
+    "category": "math",
+    "dimensionality": "2d",
+    "description": "Shaded region or interval on an axes artifact.",
+    "properties": {
+      "axes": {
+        "type": "str",
+        "required": true
+      },
+      "xMin": {
+        "type": "float",
+        "required": true
+      },
+      "xMax": {
+        "type": "float",
+        "required": true
+      },
+      "function": {
+        "type": "str",
+        "default": "0",
+        "description": "upper bound y = f(x)"
+      },
+      "fill": {
+        "type": "str",
+        "default": "accent"
+      },
+      "opacity": {
+        "type": "float",
+        "default": 0.25
+      }
+    }
+  },
+  {
+    "key": "math.tensor",
+    "label": "Tensor View",
+    "category": "math",
+    "dimensionality": "2d",
+    "description": "N-dimensional numeric tensor rendered as nested cells.",
+    "properties": {
+      "shape": {
+        "type": "list",
+        "required": true,
+        "description": "dimensions, e.g. [2, 3, 4]"
+      },
+      "data": {
+        "type": "list",
+        "description": "flat values (row-major) or nested lists"
+      },
+      "heat": {
+        "type": "bool",
+        "default": true
+      },
+      "label": {
+        "type": "str"
+      }
+    }
+  },
+  {
+    "key": "math.distribution",
+    "label": "Probability Distribution",
+    "category": "math",
+    "dimensionality": "2d",
+    "description": "pdf curve of a named distribution on an axes artifact.",
+    "properties": {
+      "axes": {
+        "type": "str",
+        "required": true
+      },
+      "kind": {
+        "type": "str",
+        "required": true,
+        "enum": [
+          "normal",
+          "uniform",
+          "laplace",
+          "beta"
+        ]
+      },
+      "mu": {
+        "type": "float",
+        "default": 0.0
+      },
+      "sigma": {
+        "type": "float",
+        "default": 1.0
+      },
+      "a": {
+        "type": "float",
+        "default": 2.0,
+        "description": "beta alpha / uniform low"
+      },
+      "b": {
+        "type": "float",
+        "default": 2.0,
+        "description": "beta beta / uniform high"
+      },
+      "color": {
+        "type": "str",
+        "default": "accent2"
+      }
+    }
+  },
+  {
+    "key": "presentation.title",
+    "label": "Title",
+    "category": "presentation",
+    "dimensionality": "2d",
+    "description": "Scene title with optional subtitle.",
+    "properties": {
+      "text": {
+        "type": "str",
+        "required": true
+      },
+      "subtitle": {
         "type": "str"
       },
       "fontSize": {
-        "default": 22,
-        "type": "float"
+        "type": "float",
+        "default": 40
       },
+      "color": {
+        "type": "str",
+        "default": "fg"
+      }
+    }
+  },
+  {
+    "key": "presentation.callout",
+    "label": "Callout",
+    "category": "presentation",
+    "dimensionality": "2d",
+    "description": "Labeled pointer that visually connects text to a target.",
+    "properties": {
       "text": {
+        "type": "str",
+        "required": true
+      },
+      "target": {
+        "type": "str",
+        "description": "target artifact id"
+      },
+      "side": {
+        "type": "str",
+        "enum": [
+          "LEFT",
+          "RIGHT",
+          "UP",
+          "DOWN"
+        ],
+        "default": "RIGHT"
+      },
+      "fontSize": {
+        "type": "float",
+        "default": 24
+      }
+    }
+  },
+  {
+    "key": "presentation.legend",
+    "label": "Legend",
+    "category": "presentation",
+    "dimensionality": "2d",
+    "description": "Color/label legend entries.",
+    "properties": {
+      "entries": {
+        "type": "list",
         "required": true,
-        "type": "str"
+        "description": "[{label, color}]"
+      },
+      "fontSize": {
+        "type": "float",
+        "default": 22
+      }
+    }
+  },
+  {
+    "key": "presentation.table",
+    "label": "Table",
+    "category": "presentation",
+    "dimensionality": "2d",
+    "description": "Text table; cells support {value} live templates.",
+    "properties": {
+      "headers": {
+        "type": "list",
+        "default": []
+      },
+      "rows": {
+        "type": "list",
+        "required": true
+      },
+      "fontSize": {
+        "type": "float",
+        "default": 22
+      }
+    }
+  },
+  {
+    "key": "presentation.metric_card",
+    "label": "Metric Card",
+    "category": "presentation",
+    "dimensionality": "2d",
+    "description": "Live metric bound to a state symbol or live value (issue #4 visual consumer).",
+    "properties": {
+      "title": {
+        "type": "str",
+        "required": true
+      },
+      "provider": {
+        "type": "str",
+        "required": true,
+        "description": "state symbol / live value id"
+      },
+      "format": {
+        "type": "str",
+        "default": "{value}",
+        "description": "value template"
+      },
+      "live": {
+        "type": "bool",
+        "default": true
+      },
+      "accent": {
+        "type": "str",
+        "default": "accent"
+      }
+    }
+  },
+  {
+    "key": "comparison.panel",
+    "label": "Comparison Panel",
+    "category": "comparison",
+    "dimensionality": "2d",
+    "description": "Visual comparison driven by a declared comparison spec.",
+    "properties": {
+      "comparison": {
+        "type": "str",
+        "required": true,
+        "description": "comparison id from the comparisons section"
+      },
+      "fontSize": {
+        "type": "float",
+        "default": 22
       }
     }
   }

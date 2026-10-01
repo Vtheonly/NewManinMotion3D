@@ -7,13 +7,15 @@
  */
 
 import { typeEntry } from './schemaTypes.js';
+import { validateStateSections } from './validateState.js';
 
 const SCENE_TYPES = ['scene_2d', 'moving_camera', 'three_d', 'custom'];
 const SPACES = ['scene2d', 'world3d'];
 const RELATION_KINDS = ['arrow', 'distance', 'annotation', 'link',
   'comparison', 'group'];
 const STEP_OPS = ['show', 'play', 'highlight', 'annotate', 'wait', 'camera',
-  'transform', 'custom'];
+  'transform', 'custom', 'set', 'interpolate', 'transition', 'compare'];
+const STATE_TARGET_OPS = ['set', 'interpolate', 'transition', 'compare'];
 const ANIMATIONS = ['write', 'create', 'uncreate', 'fade_in', 'fade_out',
   'grow', 'indicate', 'draw', 'shift_in'];
 
@@ -193,12 +195,27 @@ function validateDocument (doc) {
         errors.push({ path: `timeline/${stage.id}`,
           message: `${step.op} step requires a target` });
       }
-      if (step.target && !allIds.has(step.target)) {
+      if (['set', 'interpolate'].includes(step.op) && !step.target) {
+        errors.push({ path: `timeline/${stage.id}`,
+          message: `${step.op} step requires a target symbol` });
+      }
+      if (step.op === 'transition' && !step.target) {
+        errors.push({ path: `timeline/${stage.id}`,
+          message: 'transition step requires a machine id' });
+      }
+      if (step.op === 'compare' && !step.target) {
+        errors.push({ path: `timeline/${stage.id}`,
+          message: 'compare step requires a comparison id' });
+      }
+      if (step.target && !allIds.has(step.target) &&
+          !STATE_TARGET_OPS.includes(step.op)) {
         errors.push({ path: `timeline/${stage.id}/${step.target}`,
           message: `step targets unknown id '${step.target}'` });
       }
     });
   });
+
+  errors.push(...validateStateSections(doc));
 
   return { valid: errors.length === 0, errors };
 }

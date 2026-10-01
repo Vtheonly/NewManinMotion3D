@@ -15,20 +15,14 @@ def build() -> ScientificScene:
         scene_type="moving_camera",
         camera={"backgroundColor": "bg", "zoom": 0.92},
     )
-    scene.node("ui.grid", "wall", cellHeight=1.5, cellWidth=1.5, columns=3, gap=0.24, rows=2)
-    scene.node("biology.protein", "prot_0", representation="trace", residues=18, seed=3, position=[-1, 0.5, 0], scale=0.5)
-    scene.node("ui.stamp", "stamp_0", verdict="fail", position=[-1, -0.6, 0], scale=0.62)
-    scene.node("biology.protein", "prot_1", representation="trace", residues=22, seed=4, position=[0, 0.5, 0], scale=0.5)
-    scene.node("ui.stamp", "stamp_1", verdict="ok", position=[0, -0.6, 0], scale=0.62)
-    scene.node("biology.protein", "prot_2", representation="trace", residues=26, seed=5, position=[1, 0.5, 0], scale=0.5)
-    scene.node("ui.stamp", "stamp_2", verdict="fail", position=[1, -0.6, 0], scale=0.62)
-    scene.node("nn.network", "scorer", layers=[4, 6, 1], seed=11, position=[4.5, 0, 0], scale=0.85)
-    with scene.stage(stage_id="reveal", title="Reveal") as st:
+    scene.node("ui.grid", "wall", cellWidth=1.5, columns=4, gap=0.24, rows=3)
+    scene.node("ui.panel", "banner", height=1.1, width=10, position=[0, 3.4, 0])
+    scene.node("ui.stamp", "stamp_1", verdict="ok", position=[1, -1, 0])
+    scene.node("nn.network", "scorer", layers=[4, 6, 1], seed=11)
+    scene.live_value("hero_energy", {"key": "energy", "kind": "data", "ref": "synth/protein.json"}, format="ΔG = {value:.2f} kcal/mol")
+    with scene.stage(stage_id="intro", title="The Wall") as st:
         st.show("wall")
-        st.play("stamp_0", "grow", duration=0.6, rate="smooth")
-        st.play("stamp_1", "grow", duration=0.6, rate="smooth")
-        st.play("stamp_2", "grow", duration=0.6, rate="smooth")
-        st.camera({"zoom": 1.12}, duration=2)
+        st.play("banner", "fade_in", duration=1.2)
     return scene
 
 

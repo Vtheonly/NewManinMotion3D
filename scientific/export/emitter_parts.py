@@ -72,10 +72,7 @@ def emit_step(w, step) -> None:
             anim.append(f"rate={py_literal(step.rate)}")
         w(f"        st.play({target}, {', '.join(anim)})")
     elif op == "highlight":
-        extra = ""
-        if step.properties and "color" in step.properties:
-            extra = f", color={py_literal(step.properties['color'])}"
-        w(f"        st.highlight({target}{extra}{dur})")
+        w(f"        st.highlight({target}{_highlight_tail(step)}{dur})")
     elif op == "annotate":
         val = step.properties.get("value") if step.properties else None
         w(f"        st.annotate({target}, {py_literal(val)}{dur})")
@@ -86,5 +83,47 @@ def emit_step(w, step) -> None:
     elif op == "transform":
         w(f"        st.transform({target}, "
           f"{py_literal(step.properties or {})}{dur})")
+    elif op == "set":
+        value = (step.properties or {}).get("value")
+        w(f"        st.set({target}, {py_literal(value)})")
+    elif op == "interpolate":
+        w(f"        st.interpolate({target}{_interpolate_tail(step)})")
+    elif op == "transition":
+        w(f"        st.transition({target}{_transition_tail(step)}{dur})")
+    elif op == "compare":
+        w(f"        st.compare({target}{dur})")
     elif op == "custom":
         w(f"        st.custom({py_literal(step.code or '')})")
+
+
+def _highlight_tail(step) -> str:
+    props = step.properties or {}
+    tail = ""
+    if props.get("behaviors"):
+        tail += f", behaviors={py_literal(props['behaviors'])}"
+    if "color" in props:
+        tail += f", color={py_literal(props['color'])}"
+    if props.get("label"):
+        tail += f", label={py_literal(props['label'])}"
+    return tail
+
+
+def _interpolate_tail(step) -> str:
+    props = step.properties or {}
+    tail = f", to={py_literal(props.get('to', 0.0))}"
+    tail += f", duration={py_literal(step.duration if step.duration is not None else 2.0)}"
+    if "from" in props:
+        tail += f", from_={py_literal(props['from'])}"
+    if step.rate:
+        tail += f", rate={py_literal(step.rate)}"
+    return tail
+
+
+def _transition_tail(step) -> str:
+    props = step.properties or {}
+    tail = ""
+    if props.get("to"):
+        tail += f", to={py_literal(props['to'])}"
+    if props.get("event"):
+        tail += f", event={py_literal(props['event'])}"
+    return tail

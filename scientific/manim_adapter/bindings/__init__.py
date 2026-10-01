@@ -9,8 +9,12 @@ from __future__ import annotations
 from . import (  # noqa: F401  (side-effect registration)
     attention,
     biology,
+    graphs,
     kinematics,
     math as math_bindings,
+    math_data,
+    math_ext,
     nn,
+    presentation_ext,
     ui,
 )

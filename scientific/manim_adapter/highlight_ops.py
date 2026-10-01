@@ -80,7 +80,7 @@ def _behavior(scene, ctx, mob, behavior: str, color, others,
     elif behavior == "emphasis":
         out.append(mob.animate.set_color(color))
     elif behavior == "dim_others":
-        out.append(*[o.animate.set_opacity(0.25) for o in others])
+        out.extend(o.animate.set_opacity(0.25) for o in others)
     elif behavior == "focus":
         pass  # alias: focus = outline + dim_others (already expanded)
     elif behavior == "arrow":

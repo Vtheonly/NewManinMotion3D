@@ -7,6 +7,9 @@
  */
 
 import { pyLiteral } from './literals.js';
+import { emitStateSections } from './emitState.js';
+import { emitStep } from './emitSteps.js';
+import { emitNode, emitExpr } from './emitObjects.js';
 
 const BASE_CLASSES = {
   scene_2d: 'BaseScientificScene',
@@ -39,105 +42,6 @@ function sceneClassName (documentId) {
   return String(documentId).split('_')
     .filter((p) => p.length > 0)
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join('');
-}
-
-function placementKwargs (node) {
-  const extra = [];
-  if (node.parentId) extra.push(`parent=${pyLiteral(node.parentId)}`);
-  if (node.space && node.space !== 'scene2d') {
-    extra.push(`space=${pyLiteral(node.space)}`);
-  }
-  if (node.label) extra.push(`label=${pyLiteral(node.label)}`);
-  const tr = node.transform || {};
-  const pos = tr.position || [0.0, 0.0, 0.0];
-  const rotation = tr.rotation || 0.0;
-  const scale = tr.scale === undefined ? 1.0 : tr.scale;
-  const moved = pos.some((c) => c !== 0) || rotation || scale !== 1.0;
-  if (moved) {
-    extra.push(`position=${pyLiteral(pos)}`);
-    if (rotation) extra.push(`rotation=${pyLiteral(rotation)}`);
-    if (scale !== 1.0) extra.push(`scale=${pyLiteral(scale)}`);
-  }
-  return extra;
-}
-
-function emitNode (w, node) {
-  const parts = [pyLiteral(node.type), pyLiteral(node.id)];
-  for (const k of Object.keys(node.properties || {}).sort()) {
-    parts.push(kwarg(k, node.properties[k]));
-  }
-  parts.push(...placementKwargs(node));
-  w(`    scene.node(${parts.join(', ')})`);
-}
-
-function emitExpr (w, expr, node) {
-  const kwargs = [`source=${pyLiteral(expr.source)}`];
-  if (expr.terms && Object.keys(expr.terms).length) {
-    kwargs.push(`terms=${pyLiteral(expr.terms)}`);
-  }
-  if (expr.bindings && Object.keys(expr.bindings).length) {
-    kwargs.push(`bindings=${pyLiteral(expr.bindings)}`);
-  }
-  if (expr.highlights && expr.highlights.length) {
-    kwargs.push(`highlights=${pyLiteral(expr.highlights)}`);
-  }
-  if (expr.format !== undefined && expr.format !== null) {
-    kwargs.push(`format=${pyLiteral(expr.format)}`);
-  }
-  if (node) {
-    for (const k of Object.keys(node.properties || {}).sort()) {
-      if (k !== 'source') kwargs.push(kwarg(k, node.properties[k]));
-    }
-    kwargs.push(...placementKwargs(node));
-  }
-  w(`    scene.formula(${pyLiteral(expr.id)}, ${kwargs.join(', ')})`);
-}
-
-function emitStep (w, step) {
-  const target = step.target !== undefined && step.target !== null
-    ? pyLiteral(step.target) : null;
-  const dur = step.duration !== undefined && step.duration !== null
-    ? `, duration=${pyLiteral(step.duration)}` : '';
-  switch (step.op) {
-    case 'show':
-      w(`        st.show(${target})`);
-      break;
-    case 'play': {
-      const anim = [pyLiteral(step.animation)];
-      if (step.duration !== undefined && step.duration !== null) {
-        anim.push(`duration=${pyLiteral(step.duration)}`);
-      }
-      if (step.rate) anim.push(`rate=${pyLiteral(step.rate)}`);
-      w(`        st.play(${target}, ${anim.join(', ')})`);
-      break;
-    }
-    case 'highlight': {
-      const color = step.properties && 'color' in step.properties
-        ? `, color=${pyLiteral(step.properties.color)}` : '';
-      w(`        st.highlight(${target}${color}${dur})`);
-      break;
-    }
-    case 'annotate': {
-      const value = step.properties ? step.properties.value : null;
-      w(`        st.annotate(${target}, ${pyLiteral(value ?? null)}${dur})`);
-      break;
-    }
-    case 'wait':
-      w(`        st.wait(${pyLiteral(step.duration || 0.5)})`);
-      break;
-    case 'camera':
-      w(`        st.camera(${pyLiteral(step.properties || {})}${dur})`);
-      break;
-    case 'transform':
-      w(`        st.transform(${target}, ` +
-        `${pyLiteral(step.properties || {})}${dur})`);
-      break;
-    case 'custom':
-      w(`        st.custom(${pyLiteral(step.code || '')})`);
-      break;
-    default:
-      break;
-  }
 }
 
 function emitDocument (doc) {
@@ -177,6 +81,7 @@ function emitDocument (doc) {
   for (const expr of expressions) {
     if (!emitted.has(expr.id)) emitExpr(w, expr, null);
   }
+  emitStateSections(w, doc);
   for (const value of doc.values || []) {
     w(`    scene.live_value(${pyLiteral(value.id)}, ` +
       `${pyLiteral(value.source)}, format=${pyLiteral(value.format)})`);

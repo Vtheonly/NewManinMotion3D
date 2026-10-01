@@ -75,7 +75,7 @@ def build_comparison(ctx: RenderContext, comparison: ComparisonSpec) -> Any:
                       color=palette_color("muted"))
         b_text = Text(format_value(metric.format, b), font_size=22,
                       color=palette_color("accent"))
-        d_text = Text(format_value(metric.delta_format, delta),
+        d_text = Text(_safe_format(metric.delta_format, delta=delta),
                       font_size=20,
                       color=palette_color("ok" if delta >= 0 else "fail"))
         row = VGroup(label, a_text, b_text, d_text).arrange(RIGHT,
@@ -99,3 +99,10 @@ def build_comparison(ctx: RenderContext, comparison: ComparisonSpec) -> Any:
                     stroke_color=palette_color("border"), stroke_width=1.2)
     back.move_to(body.get_center())
     return VGroup(back, body)
+
+
+def _safe_format(template: str, **kwargs) -> str:
+    try:
+        return template.format(**kwargs)
+    except (ValueError, KeyError):
+        return str(kwargs.get("delta", ""))

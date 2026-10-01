@@ -1,6 +1,5 @@
 {
   "camera": {
-    "distance": 11,
     "phi": 70,
     "theta": -40
   },
@@ -11,11 +10,10 @@
       "id": "torus",
       "properties": {
         "dt": 0.045,
-        "majorRadius": 2.4,
-        "minorRadius": 0.85,
-        "steps": 80
+        "majorRadius": 2.2,
+        "minorRadius": 0.8,
+        "steps": 90
       },
-      "space": "world3d",
       "type": "kinematics.torus"
     },
     {
@@ -23,35 +21,36 @@
       "properties": {
         "linkLength": 0.9,
         "thetas": [
-          0.9,
-          -0.55,
-          0.35,
-          0.15
+          0.3,
+          0.5,
+          0.2
         ]
       },
-      "space": "world3d",
+      "type": "kinematics.chain"
+    },
+    {
+      "id": "jac",
       "transform": {
         "position": [
-          2.2,
+          0,
           0,
           0
         ],
         "rotation": 0,
-        "scale": 1
+        "scale": 0.55
       },
-      "type": "kinematics.chain"
+      "type": "kinematics.jacobian"
     },
     {
       "id": "obstacle",
       "properties": {
         "center": [
-          1.85,
-          0.75,
-          0.45
+          1,
+          0.5,
+          0.3
         ],
-        "radius": 0.72
+        "radius": 0.55
       },
-      "space": "world3d",
       "type": "kinematics.obstacle"
     }
   ],
@@ -63,32 +62,27 @@
       "id": "flow",
       "steps": [
         {
-          "animation": "create",
-          "duration": 2,
-          "op": "play",
+          "op": "show",
           "target": "torus"
         },
         {
-          "duration": 3.2,
-          "op": "camera",
+          "animation": "create",
+          "duration": 2,
+          "op": "play",
+          "target": "chain"
+        },
+        {
+          "duration": 1,
+          "op": "highlight",
           "properties": {
-            "orbit": 0.18
-          }
+            "color": "warn"
+          },
+          "target": "chain"
         }
       ],
       "title": "Flow"
     }
   ],
   "title": "Torus Demo",
-  "values": [
-    {
-      "format": "ΔG = {value:.2f}",
-      "id": "hero",
-      "source": {
-        "key": "energy",
-        "kind": "data",
-        "ref": "synth/protein.json"
-      }
-    }
-  ]
+  "values": []
 }

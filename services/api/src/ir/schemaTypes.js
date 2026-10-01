@@ -10,18 +10,16 @@
 
 'use strict';
 
-import { CORE } from './types/core.js';
-import { MATH } from './types/math.js';
-import { BIOLOGY } from './types/biology.js';
-import { KINEMATICS } from './types/kinematics.js';
-import { ATTENTION } from './types/attention.js';
-
+import { CORE } from './types/core.js';import { MATH } from './types/math.js';import { MATHEXT } from './types/mathext.js';import { GRAPHS } from './types/graphs.js';import { BIOLOGY } from './types/biology.js';import { KINEMATICS } from './types/kinematics.js';import { ATTENTION } from './types/attention.js';import { PRESENTATION } from './types/presentation.js';
 const TYPES = [
   ...CORE,
   ...MATH,
+  ...MATHEXT,
+  ...GRAPHS,
   ...BIOLOGY,
   ...KINEMATICS,
-  ...ATTENTION
+  ...ATTENTION,
+  ...PRESENTATION
 ];
 
 const byKey = Object.fromEntries(TYPES.map((t) => [t.key, t]));

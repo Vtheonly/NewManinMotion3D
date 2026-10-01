@@ -23,7 +23,7 @@
       }
     }
   ],
-  "id": "sample_2d",
+  "id": "sample_scene",
   "objects": [
     {
       "id": "panel",
@@ -42,6 +42,23 @@
         "scale": 1
       },
       "type": "ui.panel"
+    },
+    {
+      "id": "caption",
+      "properties": {
+        "fontSize": 24,
+        "text": "hello"
+      },
+      "transform": {
+        "position": [
+          -2.5,
+          2.6,
+          0
+        ],
+        "rotation": 0,
+        "scale": 1
+      },
+      "type": "text.label"
     },
     {
       "id": "eq",
@@ -66,6 +83,9 @@
       "id": "link",
       "kind": "arrow",
       "live": true,
+      "properties": {
+        "color": "accent"
+      },
       "sources": [
         "panel",
         "eq"
@@ -97,14 +117,37 @@
           "target": "eq"
         },
         {
-          "code": "print('boundary')",
+          "duration": 1,
+          "op": "annotate",
+          "properties": {
+            "value": "E = {energy}"
+          },
+          "target": "panel"
+        },
+        {
+          "duration": 2,
+          "op": "camera",
+          "properties": {
+            "zoom": 0.85
+          }
+        },
+        {
+          "duration": 1.2,
+          "op": "transform",
+          "properties": {
+            "width": 7
+          },
+          "target": "panel"
+        },
+        {
+          "code": "print('custom code preserved')",
           "op": "custom"
         }
       ],
       "title": "Intro"
     }
   ],
-  "title": "Sample 2D",
+  "title": "Sample",
   "values": [
     {
       "format": "E = {value:.2f}",
