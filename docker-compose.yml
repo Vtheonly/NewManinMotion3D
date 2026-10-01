@@ -55,7 +55,11 @@ services:
         max_attempts: 3
 
   renderer:
-    build: ./services/renderer
+    # Context is the repo root so the scientific runtime (issue #32) is
+    # copyable into the image; see the root .dockerignore for exclusions.
+    build:
+      context: .
+      dockerfile: services/renderer/Dockerfile
     environment:
       - DATA_DIR=/data
       - REDIS_URL=redis://redis:6379

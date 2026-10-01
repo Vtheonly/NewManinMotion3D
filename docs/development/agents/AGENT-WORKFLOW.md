@@ -26,11 +26,14 @@
    - tests ship with the capability.
 4. Run all suites:
    ```bash
-   cd services/api     && npm test        # node:test
+   python -m unittest discover -s scientific/tests -t .   # scientific runtime
+   cd services/api     && npm test        # node:test (compiler + IR parity)
    cd services/web     && npm test        # engine + scene suites
    cd services/renderer && python -m unittest discover -s tests
    cd services/web     && npm run build   # must succeed
    ```
+   (The scientific suite's execution subset needs a manim-capable venv;
+   parity fixtures: `scripts/gen_parity_fixtures.py` + `scripts/sync_schema_types.py`.)
 5. Write `iterations/ITERATION-NNN.md` (goals, tasks, files, tests, bugs,
    limitations, deferred).
 6. Update `roadmap/TASK-REGISTRY.md` statuses + change log.

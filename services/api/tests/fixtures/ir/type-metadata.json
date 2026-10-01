@@ -1,0 +1,515 @@
+[
+  {
+    "category": "core",
+    "description": "Logical/visual grouping container for child artifacts.",
+    "dimensionality": "2d",
+    "key": "core.group",
+    "label": "Group",
+    "properties": {
+      "title": {
+        "description": "optional group caption",
+        "type": "str"
+      }
+    }
+  },
+  {
+    "category": "core",
+    "description": "Editable text or caption.",
+    "dimensionality": "2d",
+    "key": "text.label",
+    "label": "Text Label",
+    "properties": {
+      "color": {
+        "default": "fg",
+        "description": "palette token or hex",
+        "type": "str"
+      },
+      "fontSize": {
+        "default": 28,
+        "description": "manim font size",
+        "type": "float"
+      },
+      "text": {
+        "description": "label content",
+        "required": true,
+        "type": "str"
+      },
+      "weight": {
+        "default": "normal",
+        "enum": [
+          "normal",
+          "bold"
+        ],
+        "type": "str"
+      }
+    }
+  },
+  {
+    "category": "ui",
+    "description": "Rounded background panel/banner with optional title.",
+    "dimensionality": "2d",
+    "key": "ui.panel",
+    "label": "Panel",
+    "properties": {
+      "fill": {
+        "default": "panel",
+        "type": "str"
+      },
+      "height": {
+        "default": 3.0,
+        "type": "float"
+      },
+      "radius": {
+        "default": 0.18,
+        "type": "float"
+      },
+      "stroke": {
+        "default": "border",
+        "type": "str"
+      },
+      "title": {
+        "type": "str"
+      },
+      "width": {
+        "default": 6.0,
+        "type": "float"
+      }
+    }
+  },
+  {
+    "category": "ui",
+    "description": "Cell layout grid used by walls/arrays of artifacts.",
+    "dimensionality": "2d",
+    "key": "ui.grid",
+    "label": "Grid",
+    "properties": {
+      "cellHeight": {
+        "default": 1.5,
+        "type": "float"
+      },
+      "cellWidth": {
+        "default": 1.5,
+        "type": "float"
+      },
+      "columns": {
+        "min": 1,
+        "required": true,
+        "type": "int"
+      },
+      "gap": {
+        "default": 0.2,
+        "type": "float"
+      },
+      "rows": {
+        "min": 1,
+        "required": true,
+        "type": "int"
+      }
+    }
+  },
+  {
+    "category": "ui",
+    "description": "OK/FAIL validation stamp for candidate artifacts.",
+    "dimensionality": "2d",
+    "key": "ui.stamp",
+    "label": "Validation Stamp",
+    "properties": {
+      "label": {
+        "type": "str"
+      },
+      "verdict": {
+        "enum": [
+          "ok",
+          "fail"
+        ],
+        "required": true,
+        "type": "str"
+      }
+    }
+  },
+  {
+    "category": "ui",
+    "description": "Small colored pill with short text (scores, tags).",
+    "dimensionality": "2d",
+    "key": "ui.badge",
+    "label": "Badge",
+    "properties": {
+      "text": {
+        "required": true,
+        "type": "str"
+      },
+      "tone": {
+        "default": "info",
+        "enum": [
+          "ok",
+          "warn",
+          "fail",
+          "info"
+        ],
+        "type": "str"
+      }
+    }
+  },
+  {
+    "category": "math",
+    "description": "Structured LaTeX expression with terms/bindings/highlights.",
+    "dimensionality": "2d",
+    "key": "math.formula",
+    "label": "Formula",
+    "properties": {
+      "fontSize": {
+        "default": 44,
+        "type": "float"
+      },
+      "source": {
+        "required": true,
+        "type": "str"
+      }
+    }
+  },
+  {
+    "category": "math",
+    "description": "Coordinate axes with ranges for curves/plots.",
+    "dimensionality": "2d",
+    "key": "math.axes",
+    "label": "Axes",
+    "properties": {
+      "xLabel": {
+        "type": "str"
+      },
+      "xMax": {
+        "default": 3.0,
+        "type": "float"
+      },
+      "xMin": {
+        "default": -3.0,
+        "type": "float"
+      },
+      "yLabel": {
+        "type": "str"
+      },
+      "yMax": {
+        "default": 2.0,
+        "type": "float"
+      },
+      "yMin": {
+        "default": -2.0,
+        "type": "float"
+      }
+    }
+  },
+  {
+    "category": "math",
+    "description": "Function curve y=f(x) on an axes artifact.",
+    "dimensionality": "2d",
+    "key": "math.curve",
+    "label": "Curve",
+    "properties": {
+      "axes": {
+        "description": "axes node id",
+        "required": true,
+        "type": "str"
+      },
+      "color": {
+        "default": "accent",
+        "type": "str"
+      },
+      "function": {
+        "description": "safe-evaluator expression of x",
+        "required": true,
+        "type": "str"
+      }
+    }
+  },
+  {
+    "category": "math",
+    "description": "Numeric matrix with optional cell heat-coloring.",
+    "dimensionality": "2d",
+    "key": "math.matrix",
+    "label": "Matrix",
+    "properties": {
+      "heat": {
+        "default": false,
+        "description": "color cells by value",
+        "type": "bool"
+      },
+      "label": {
+        "type": "str"
+      },
+      "rows": {
+        "required": true,
+        "type": "list"
+      }
+    }
+  },
+  {
+    "category": "biology",
+    "description": "Residue-level protein model (cartoon/trace representations).",
+    "dimensionality": "2d",
+    "key": "biology.protein",
+    "label": "Protein Structure",
+    "properties": {
+      "color": {
+        "default": "accent2",
+        "type": "str"
+      },
+      "representation": {
+        "default": "cartoon",
+        "enum": [
+          "cartoon",
+          "trace",
+          "schematic"
+        ],
+        "type": "str"
+      },
+      "residues": {
+        "default": 24,
+        "type": "int"
+      },
+      "seed": {
+        "default": 7,
+        "description": "deterministic fold seed",
+        "type": "int"
+      },
+      "source": {
+        "description": "DataRef path for residue data",
+        "type": "str"
+      }
+    }
+  },
+  {
+    "category": "biology",
+    "description": "Amino-acid sequence strip with position mapping.",
+    "dimensionality": "2d",
+    "key": "biology.sequence",
+    "label": "Sequence",
+    "properties": {
+      "blockSize": {
+        "default": 0.42,
+        "type": "float"
+      },
+      "highlight": {
+        "default": [],
+        "description": "residue indices to highlight",
+        "type": "list"
+      },
+      "sequence": {
+        "required": true,
+        "type": "str"
+      }
+    }
+  },
+  {
+    "category": "nn",
+    "description": "Deterministic MLP scoring network with live activations.",
+    "dimensionality": "2d",
+    "key": "nn.network",
+    "label": "Neural Network",
+    "properties": {
+      "input": {
+        "default": [],
+        "description": "input vector (empty -> zeros)",
+        "type": "list"
+      },
+      "layers": {
+        "description": "neuron counts, e.g. [4, 6, 1]",
+        "required": true,
+        "type": "list"
+      },
+      "seed": {
+        "default": 11,
+        "type": "int"
+      },
+      "showActivations": {
+        "default": true,
+        "type": "bool"
+      }
+    }
+  },
+  {
+    "category": "kinematics",
+    "description": "T^2 manifold with flow field and integrated trajectory.",
+    "dimensionality": "3d",
+    "key": "kinematics.torus",
+    "label": "Flat Torus Flow",
+    "properties": {
+      "dt": {
+        "default": 0.045,
+        "type": "float"
+      },
+      "flowStrength": {
+        "default": 1.0,
+        "type": "float"
+      },
+      "majorRadius": {
+        "default": 2.2,
+        "type": "float"
+      },
+      "minorRadius": {
+        "default": 0.8,
+        "type": "float"
+      },
+      "steps": {
+        "default": 90,
+        "type": "int"
+      }
+    }
+  },
+  {
+    "category": "kinematics",
+    "description": "Serial revolute chain assembled via product of exponentials.",
+    "dimensionality": "3d",
+    "key": "kinematics.chain",
+    "label": "PoE Kinematic Chain",
+    "properties": {
+      "linkLength": {
+        "default": 0.9,
+        "type": "float"
+      },
+      "thetas": {
+        "required": true,
+        "type": "list"
+      }
+    }
+  },
+  {
+    "category": "kinematics",
+    "description": "Geometric Jacobian column vectors at the end effector.",
+    "dimensionality": "3d",
+    "key": "kinematics.jacobian",
+    "label": "Jacobian Arrows",
+    "properties": {
+      "scale": {
+        "default": 0.55,
+        "type": "float"
+      }
+    }
+  },
+  {
+    "category": "kinematics",
+    "description": "Spherical obstacle for clash/avoidance demonstrations.",
+    "dimensionality": "3d",
+    "key": "kinematics.obstacle",
+    "label": "Obstacle",
+    "properties": {
+      "center": {
+        "required": true,
+        "type": "list"
+      },
+      "radius": {
+        "default": 0.55,
+        "type": "float"
+      }
+    }
+  },
+  {
+    "category": "attention",
+    "description": "Query-key score matrix with distance bias (softmax).",
+    "dimensionality": "2d",
+    "key": "attention.matrix",
+    "label": "Attention Heatmap",
+    "properties": {
+      "distanceBias": {
+        "default": 0.25,
+        "type": "float"
+      },
+      "keys": {
+        "required": true,
+        "type": "list"
+      },
+      "queries": {
+        "required": true,
+        "type": "list"
+      },
+      "temperature": {
+        "default": 1.0,
+        "type": "float"
+      },
+      "topK": {
+        "default": 3,
+        "type": "int"
+      }
+    }
+  },
+  {
+    "category": "attention",
+    "description": "SO(3) triad anchored in world space (target anchors).",
+    "dimensionality": "3d",
+    "key": "attention.frame",
+    "label": "Orientation Frame",
+    "properties": {
+      "euler": {
+        "default": [
+          0,
+          0,
+          0
+        ],
+        "description": "XYZ Euler degrees",
+        "type": "list"
+      },
+      "origin": {
+        "default": [
+          0,
+          0,
+          0
+        ],
+        "description": "world-space anchor position",
+        "type": "list"
+      },
+      "size": {
+        "default": 0.5,
+        "type": "float"
+      }
+    }
+  },
+  {
+    "category": "attention",
+    "description": "Live weighted edge between two anchored artifacts.",
+    "dimensionality": "3d",
+    "key": "attention.link",
+    "label": "Attention Link",
+    "properties": {
+      "fromId": {
+        "description": "source artifact id",
+        "required": true,
+        "type": "str"
+      },
+      "toId": {
+        "description": "target artifact id",
+        "required": true,
+        "type": "str"
+      },
+      "weight": {
+        "default": 1.0,
+        "type": "float"
+      }
+    }
+  },
+  {
+    "category": "presentation",
+    "description": "Camera-independent HUD element (fixed in frame).",
+    "dimensionality": "2d",
+    "key": "hud.fixed",
+    "label": "Fixed HUD",
+    "properties": {
+      "corner": {
+        "default": "UL",
+        "enum": [
+          "UL",
+          "UR",
+          "LL",
+          "LR"
+        ],
+        "type": "str"
+      },
+      "fontSize": {
+        "default": 22,
+        "type": "float"
+      },
+      "text": {
+        "required": true,
+        "type": "str"
+      }
+    }
+  }
+]

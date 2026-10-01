@@ -1,0 +1,1736 @@
+[
+  {
+    "name": "valid_2d",
+    "document": {
+      "schema": "sci-ir/1",
+      "id": "sample_2d",
+      "title": "Sample 2D",
+      "sceneType": "scene_2d",
+      "objects": [
+        {
+          "id": "panel",
+          "type": "ui.panel",
+          "properties": {
+            "width": 6.0,
+            "height": 3.0,
+            "title": "Panel"
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              1.0,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        },
+        {
+          "id": "eq",
+          "type": "math.formula",
+          "properties": {
+            "source": "tau = J(theta).T @ F",
+            "fontSize": 40
+          },
+          "transform": {
+            "position": [
+              2.0,
+              -0.5,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eq",
+          "source": "tau = J(theta).T @ F",
+          "terms": {
+            "Jt": "J(theta).T"
+          },
+          "bindings": {
+            "theta": {
+              "kind": "literal",
+              "value": 0.6
+            }
+          },
+          "highlights": [
+            "J(theta).T"
+          ]
+        }
+      ],
+      "values": [
+        {
+          "id": "energy",
+          "source": {
+            "kind": "derived",
+            "expr": "a * b + 1",
+            "inputs": {
+              "a": {
+                "kind": "literal",
+                "value": 2
+              },
+              "b": {
+                "kind": "literal",
+                "value": 3
+              }
+            }
+          },
+          "format": "E = {value:.2f}"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "link",
+          "kind": "arrow",
+          "sources": [
+            "panel",
+            "eq"
+          ],
+          "live": true
+        }
+      ],
+      "bindings": {
+        "theta": {
+          "kind": "literal",
+          "value": 0.6
+        }
+      },
+      "timeline": [
+        {
+          "id": "s1",
+          "title": "Intro",
+          "steps": [
+            {
+              "op": "show",
+              "target": "panel"
+            },
+            {
+              "op": "play",
+              "target": "eq",
+              "animation": "write",
+              "duration": 1.5
+            },
+            {
+              "op": "highlight",
+              "target": "eq",
+              "duration": 1.0,
+              "properties": {
+                "color": "warn"
+              }
+            },
+            {
+              "op": "custom",
+              "code": "print('boundary')"
+            }
+          ]
+        }
+      ]
+    },
+    "expectValid": true
+  },
+  {
+    "name": "valid_3d",
+    "document": {
+      "schema": "sci-ir/1",
+      "id": "torus_demo",
+      "title": "Torus Demo",
+      "sceneType": "three_d",
+      "camera": {
+        "phi": 70,
+        "theta": -40,
+        "distance": 11.0
+      },
+      "objects": [
+        {
+          "id": "torus",
+          "type": "kinematics.torus",
+          "properties": {
+            "majorRadius": 2.4,
+            "minorRadius": 0.85,
+            "steps": 80,
+            "dt": 0.045
+          },
+          "space": "world3d"
+        },
+        {
+          "id": "chain",
+          "type": "kinematics.chain",
+          "properties": {
+            "thetas": [
+              0.9,
+              -0.55,
+              0.35,
+              0.15
+            ],
+            "linkLength": 0.9
+          },
+          "space": "world3d",
+          "transform": {
+            "position": [
+              2.2,
+              0.0,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        },
+        {
+          "id": "obstacle",
+          "type": "kinematics.obstacle",
+          "properties": {
+            "center": [
+              1.85,
+              0.75,
+              0.45
+            ],
+            "radius": 0.72
+          },
+          "space": "world3d"
+        }
+      ],
+      "expressions": [],
+      "values": [
+        {
+          "id": "hero",
+          "source": {
+            "kind": "data",
+            "ref": "synth/protein.json",
+            "key": "energy"
+          },
+          "format": "\u0394G = {value:.2f}"
+        }
+      ],
+      "relationships": [],
+      "timeline": [
+        {
+          "id": "flow",
+          "title": "Flow",
+          "steps": [
+            {
+              "op": "play",
+              "target": "torus",
+              "animation": "create",
+              "duration": 2.0
+            },
+            {
+              "op": "camera",
+              "duration": 3.2,
+              "properties": {
+                "orbit": 0.18
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "expectValid": true
+  },
+  {
+    "name": "valid_wall",
+    "document": {
+      "schema": "sci-ir/1",
+      "id": "wall_demo",
+      "title": "Wall Demo",
+      "sceneType": "moving_camera",
+      "camera": {
+        "backgroundColor": "bg",
+        "zoom": 0.92
+      },
+      "objects": [
+        {
+          "id": "wall",
+          "type": "ui.grid",
+          "properties": {
+            "columns": 3,
+            "rows": 2,
+            "cellWidth": 1.5,
+            "cellHeight": 1.5,
+            "gap": 0.24
+          }
+        },
+        {
+          "id": "prot_0",
+          "type": "biology.protein",
+          "properties": {
+            "residues": 18,
+            "seed": 3,
+            "representation": "trace"
+          },
+          "transform": {
+            "position": [
+              -1.0,
+              0.5,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 0.5
+          }
+        },
+        {
+          "id": "stamp_0",
+          "type": "ui.stamp",
+          "properties": {
+            "verdict": "fail"
+          },
+          "transform": {
+            "position": [
+              -1.0,
+              -0.6,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 0.62
+          }
+        },
+        {
+          "id": "prot_1",
+          "type": "biology.protein",
+          "properties": {
+            "residues": 22,
+            "seed": 4,
+            "representation": "trace"
+          },
+          "transform": {
+            "position": [
+              0.0,
+              0.5,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 0.5
+          }
+        },
+        {
+          "id": "stamp_1",
+          "type": "ui.stamp",
+          "properties": {
+            "verdict": "ok"
+          },
+          "transform": {
+            "position": [
+              0.0,
+              -0.6,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 0.62
+          }
+        },
+        {
+          "id": "prot_2",
+          "type": "biology.protein",
+          "properties": {
+            "residues": 26,
+            "seed": 5,
+            "representation": "trace"
+          },
+          "transform": {
+            "position": [
+              1.0,
+              0.5,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 0.5
+          }
+        },
+        {
+          "id": "stamp_2",
+          "type": "ui.stamp",
+          "properties": {
+            "verdict": "fail"
+          },
+          "transform": {
+            "position": [
+              1.0,
+              -0.6,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 0.62
+          }
+        },
+        {
+          "id": "scorer",
+          "type": "nn.network",
+          "properties": {
+            "layers": [
+              4,
+              6,
+              1
+            ],
+            "seed": 11
+          },
+          "transform": {
+            "position": [
+              4.5,
+              0.0,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 0.85
+          }
+        }
+      ],
+      "expressions": [],
+      "values": [],
+      "relationships": [],
+      "timeline": [
+        {
+          "id": "reveal",
+          "title": "Reveal",
+          "steps": [
+            {
+              "op": "show",
+              "target": "wall"
+            },
+            {
+              "op": "play",
+              "target": "stamp_0",
+              "animation": "grow",
+              "duration": 0.6,
+              "rate": "smooth"
+            },
+            {
+              "op": "play",
+              "target": "stamp_1",
+              "animation": "grow",
+              "duration": 0.6,
+              "rate": "smooth"
+            },
+            {
+              "op": "play",
+              "target": "stamp_2",
+              "animation": "grow",
+              "duration": 0.6,
+              "rate": "smooth"
+            },
+            {
+              "op": "camera",
+              "duration": 2.0,
+              "properties": {
+                "zoom": 1.12
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "expectValid": true
+  },
+  {
+    "name": "unknown_type",
+    "document": {
+      "schema": "sci-ir/1",
+      "id": "sample_2d",
+      "title": "Sample 2D",
+      "sceneType": "scene_2d",
+      "objects": [
+        {
+          "id": "panel",
+          "type": "ghost.thing",
+          "properties": {
+            "width": 6.0,
+            "height": 3.0,
+            "title": "Panel"
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              1.0,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        },
+        {
+          "id": "eq",
+          "type": "math.formula",
+          "properties": {
+            "source": "tau = J(theta).T @ F",
+            "fontSize": 40
+          },
+          "transform": {
+            "position": [
+              2.0,
+              -0.5,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eq",
+          "source": "tau = J(theta).T @ F",
+          "terms": {
+            "Jt": "J(theta).T"
+          },
+          "bindings": {
+            "theta": {
+              "kind": "literal",
+              "value": 0.6
+            }
+          },
+          "highlights": [
+            "J(theta).T"
+          ]
+        }
+      ],
+      "values": [
+        {
+          "id": "energy",
+          "source": {
+            "kind": "derived",
+            "expr": "a * b + 1",
+            "inputs": {
+              "a": {
+                "kind": "literal",
+                "value": 2
+              },
+              "b": {
+                "kind": "literal",
+                "value": 3
+              }
+            }
+          },
+          "format": "E = {value:.2f}"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "link",
+          "kind": "arrow",
+          "sources": [
+            "panel",
+            "eq"
+          ],
+          "live": true
+        }
+      ],
+      "bindings": {
+        "theta": {
+          "kind": "literal",
+          "value": 0.6
+        }
+      },
+      "timeline": [
+        {
+          "id": "s1",
+          "title": "Intro",
+          "steps": [
+            {
+              "op": "show",
+              "target": "panel"
+            },
+            {
+              "op": "play",
+              "target": "eq",
+              "animation": "write",
+              "duration": 1.5
+            },
+            {
+              "op": "highlight",
+              "target": "eq",
+              "duration": 1.0,
+              "properties": {
+                "color": "warn"
+              }
+            },
+            {
+              "op": "custom",
+              "code": "print('boundary')"
+            }
+          ]
+        }
+      ]
+    },
+    "expectValid": false
+  },
+  {
+    "name": "unknown_property",
+    "document": {
+      "schema": "sci-ir/1",
+      "id": "sample_2d",
+      "title": "Sample 2D",
+      "sceneType": "scene_2d",
+      "objects": [
+        {
+          "id": "panel",
+          "type": "ui.panel",
+          "properties": {
+            "width": 6.0,
+            "height": 3.0,
+            "title": "Panel",
+            "zzz": 1
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              1.0,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        },
+        {
+          "id": "eq",
+          "type": "math.formula",
+          "properties": {
+            "source": "tau = J(theta).T @ F",
+            "fontSize": 40
+          },
+          "transform": {
+            "position": [
+              2.0,
+              -0.5,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eq",
+          "source": "tau = J(theta).T @ F",
+          "terms": {
+            "Jt": "J(theta).T"
+          },
+          "bindings": {
+            "theta": {
+              "kind": "literal",
+              "value": 0.6
+            }
+          },
+          "highlights": [
+            "J(theta).T"
+          ]
+        }
+      ],
+      "values": [
+        {
+          "id": "energy",
+          "source": {
+            "kind": "derived",
+            "expr": "a * b + 1",
+            "inputs": {
+              "a": {
+                "kind": "literal",
+                "value": 2
+              },
+              "b": {
+                "kind": "literal",
+                "value": 3
+              }
+            }
+          },
+          "format": "E = {value:.2f}"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "link",
+          "kind": "arrow",
+          "sources": [
+            "panel",
+            "eq"
+          ],
+          "live": true
+        }
+      ],
+      "bindings": {
+        "theta": {
+          "kind": "literal",
+          "value": 0.6
+        }
+      },
+      "timeline": [
+        {
+          "id": "s1",
+          "title": "Intro",
+          "steps": [
+            {
+              "op": "show",
+              "target": "panel"
+            },
+            {
+              "op": "play",
+              "target": "eq",
+              "animation": "write",
+              "duration": 1.5
+            },
+            {
+              "op": "highlight",
+              "target": "eq",
+              "duration": 1.0,
+              "properties": {
+                "color": "warn"
+              }
+            },
+            {
+              "op": "custom",
+              "code": "print('boundary')"
+            }
+          ]
+        }
+      ]
+    },
+    "expectValid": false
+  },
+  {
+    "name": "missing_formula_pair_normalized",
+    "document": {
+      "schema": "sci-ir/1",
+      "id": "sample_2d",
+      "title": "Sample 2D",
+      "sceneType": "scene_2d",
+      "objects": [
+        {
+          "id": "panel",
+          "type": "ui.panel",
+          "properties": {
+            "width": 6.0,
+            "height": 3.0,
+            "title": "Panel"
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              1.0,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eq",
+          "source": "tau = J(theta).T @ F",
+          "terms": {
+            "Jt": "J(theta).T"
+          },
+          "bindings": {
+            "theta": {
+              "kind": "literal",
+              "value": 0.6
+            }
+          },
+          "highlights": [
+            "J(theta).T"
+          ]
+        }
+      ],
+      "values": [
+        {
+          "id": "energy",
+          "source": {
+            "kind": "derived",
+            "expr": "a * b + 1",
+            "inputs": {
+              "a": {
+                "kind": "literal",
+                "value": 2
+              },
+              "b": {
+                "kind": "literal",
+                "value": 3
+              }
+            }
+          },
+          "format": "E = {value:.2f}"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "link",
+          "kind": "arrow",
+          "sources": [
+            "panel",
+            "eq"
+          ],
+          "live": true
+        }
+      ],
+      "bindings": {
+        "theta": {
+          "kind": "literal",
+          "value": 0.6
+        }
+      },
+      "timeline": [
+        {
+          "id": "s1",
+          "title": "Intro",
+          "steps": [
+            {
+              "op": "show",
+              "target": "panel"
+            },
+            {
+              "op": "play",
+              "target": "eq",
+              "animation": "write",
+              "duration": 1.5
+            },
+            {
+              "op": "highlight",
+              "target": "eq",
+              "duration": 1.0,
+              "properties": {
+                "color": "warn"
+              }
+            },
+            {
+              "op": "custom",
+              "code": "print('boundary')"
+            }
+          ]
+        }
+      ]
+    },
+    "expectValid": true
+  },
+  {
+    "name": "bad_property_type",
+    "document": {
+      "schema": "sci-ir/1",
+      "id": "sample_2d",
+      "title": "Sample 2D",
+      "sceneType": "scene_2d",
+      "objects": [
+        {
+          "id": "panel",
+          "type": "ui.panel",
+          "properties": {
+            "width": "wide",
+            "height": 3.0,
+            "title": "Panel"
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              1.0,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        },
+        {
+          "id": "eq",
+          "type": "math.formula",
+          "properties": {
+            "source": "tau = J(theta).T @ F",
+            "fontSize": 40
+          },
+          "transform": {
+            "position": [
+              2.0,
+              -0.5,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eq",
+          "source": "tau = J(theta).T @ F",
+          "terms": {
+            "Jt": "J(theta).T"
+          },
+          "bindings": {
+            "theta": {
+              "kind": "literal",
+              "value": 0.6
+            }
+          },
+          "highlights": [
+            "J(theta).T"
+          ]
+        }
+      ],
+      "values": [
+        {
+          "id": "energy",
+          "source": {
+            "kind": "derived",
+            "expr": "a * b + 1",
+            "inputs": {
+              "a": {
+                "kind": "literal",
+                "value": 2
+              },
+              "b": {
+                "kind": "literal",
+                "value": 3
+              }
+            }
+          },
+          "format": "E = {value:.2f}"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "link",
+          "kind": "arrow",
+          "sources": [
+            "panel",
+            "eq"
+          ],
+          "live": true
+        }
+      ],
+      "bindings": {
+        "theta": {
+          "kind": "literal",
+          "value": 0.6
+        }
+      },
+      "timeline": [
+        {
+          "id": "s1",
+          "title": "Intro",
+          "steps": [
+            {
+              "op": "show",
+              "target": "panel"
+            },
+            {
+              "op": "play",
+              "target": "eq",
+              "animation": "write",
+              "duration": 1.5
+            },
+            {
+              "op": "highlight",
+              "target": "eq",
+              "duration": 1.0,
+              "properties": {
+                "color": "warn"
+              }
+            },
+            {
+              "op": "custom",
+              "code": "print('boundary')"
+            }
+          ]
+        }
+      ]
+    },
+    "expectValid": false
+  },
+  {
+    "name": "unknown_timeline_target",
+    "document": {
+      "schema": "sci-ir/1",
+      "id": "sample_2d",
+      "title": "Sample 2D",
+      "sceneType": "scene_2d",
+      "objects": [
+        {
+          "id": "panel",
+          "type": "ui.panel",
+          "properties": {
+            "width": 6.0,
+            "height": 3.0,
+            "title": "Panel"
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              1.0,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        },
+        {
+          "id": "eq",
+          "type": "math.formula",
+          "properties": {
+            "source": "tau = J(theta).T @ F",
+            "fontSize": 40
+          },
+          "transform": {
+            "position": [
+              2.0,
+              -0.5,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eq",
+          "source": "tau = J(theta).T @ F",
+          "terms": {
+            "Jt": "J(theta).T"
+          },
+          "bindings": {
+            "theta": {
+              "kind": "literal",
+              "value": 0.6
+            }
+          },
+          "highlights": [
+            "J(theta).T"
+          ]
+        }
+      ],
+      "values": [
+        {
+          "id": "energy",
+          "source": {
+            "kind": "derived",
+            "expr": "a * b + 1",
+            "inputs": {
+              "a": {
+                "kind": "literal",
+                "value": 2
+              },
+              "b": {
+                "kind": "literal",
+                "value": 3
+              }
+            }
+          },
+          "format": "E = {value:.2f}"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "link",
+          "kind": "arrow",
+          "sources": [
+            "panel",
+            "eq"
+          ],
+          "live": true
+        }
+      ],
+      "bindings": {
+        "theta": {
+          "kind": "literal",
+          "value": 0.6
+        }
+      },
+      "timeline": [
+        {
+          "id": "s1",
+          "title": "Intro",
+          "steps": [
+            {
+              "op": "show",
+              "target": "panel"
+            },
+            {
+              "op": "play",
+              "target": "eq",
+              "animation": "write",
+              "duration": 1.5
+            },
+            {
+              "op": "highlight",
+              "target": "eq",
+              "duration": 1.0,
+              "properties": {
+                "color": "warn"
+              }
+            },
+            {
+              "op": "custom",
+              "code": "print('boundary')"
+            },
+            {
+              "op": "show",
+              "target": "ghost"
+            }
+          ]
+        }
+      ]
+    },
+    "expectValid": false
+  },
+  {
+    "name": "unknown_animation",
+    "document": {
+      "schema": "sci-ir/1",
+      "id": "sample_2d",
+      "title": "Sample 2D",
+      "sceneType": "scene_2d",
+      "objects": [
+        {
+          "id": "panel",
+          "type": "ui.panel",
+          "properties": {
+            "width": 6.0,
+            "height": 3.0,
+            "title": "Panel"
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              1.0,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        },
+        {
+          "id": "eq",
+          "type": "math.formula",
+          "properties": {
+            "source": "tau = J(theta).T @ F",
+            "fontSize": 40
+          },
+          "transform": {
+            "position": [
+              2.0,
+              -0.5,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eq",
+          "source": "tau = J(theta).T @ F",
+          "terms": {
+            "Jt": "J(theta).T"
+          },
+          "bindings": {
+            "theta": {
+              "kind": "literal",
+              "value": 0.6
+            }
+          },
+          "highlights": [
+            "J(theta).T"
+          ]
+        }
+      ],
+      "values": [
+        {
+          "id": "energy",
+          "source": {
+            "kind": "derived",
+            "expr": "a * b + 1",
+            "inputs": {
+              "a": {
+                "kind": "literal",
+                "value": 2
+              },
+              "b": {
+                "kind": "literal",
+                "value": 3
+              }
+            }
+          },
+          "format": "E = {value:.2f}"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "link",
+          "kind": "arrow",
+          "sources": [
+            "panel",
+            "eq"
+          ],
+          "live": true
+        }
+      ],
+      "bindings": {
+        "theta": {
+          "kind": "literal",
+          "value": 0.6
+        }
+      },
+      "timeline": [
+        {
+          "id": "s1",
+          "title": "Intro",
+          "steps": [
+            {
+              "op": "show",
+              "target": "panel"
+            },
+            {
+              "op": "play",
+              "target": "eq",
+              "animation": "explode",
+              "duration": 1.5
+            },
+            {
+              "op": "highlight",
+              "target": "eq",
+              "duration": 1.0,
+              "properties": {
+                "color": "warn"
+              }
+            },
+            {
+              "op": "custom",
+              "code": "print('boundary')"
+            }
+          ]
+        }
+      ]
+    },
+    "expectValid": false
+  },
+  {
+    "name": "unknown_parent",
+    "document": {
+      "schema": "sci-ir/1",
+      "id": "sample_2d",
+      "title": "Sample 2D",
+      "sceneType": "scene_2d",
+      "objects": [
+        {
+          "id": "panel",
+          "type": "ui.panel",
+          "properties": {
+            "width": 6.0,
+            "height": 3.0,
+            "title": "Panel"
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              1.0,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          },
+          "parentId": "ghost"
+        },
+        {
+          "id": "eq",
+          "type": "math.formula",
+          "properties": {
+            "source": "tau = J(theta).T @ F",
+            "fontSize": 40
+          },
+          "transform": {
+            "position": [
+              2.0,
+              -0.5,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eq",
+          "source": "tau = J(theta).T @ F",
+          "terms": {
+            "Jt": "J(theta).T"
+          },
+          "bindings": {
+            "theta": {
+              "kind": "literal",
+              "value": 0.6
+            }
+          },
+          "highlights": [
+            "J(theta).T"
+          ]
+        }
+      ],
+      "values": [
+        {
+          "id": "energy",
+          "source": {
+            "kind": "derived",
+            "expr": "a * b + 1",
+            "inputs": {
+              "a": {
+                "kind": "literal",
+                "value": 2
+              },
+              "b": {
+                "kind": "literal",
+                "value": 3
+              }
+            }
+          },
+          "format": "E = {value:.2f}"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "link",
+          "kind": "arrow",
+          "sources": [
+            "panel",
+            "eq"
+          ],
+          "live": true
+        }
+      ],
+      "bindings": {
+        "theta": {
+          "kind": "literal",
+          "value": 0.6
+        }
+      },
+      "timeline": [
+        {
+          "id": "s1",
+          "title": "Intro",
+          "steps": [
+            {
+              "op": "show",
+              "target": "panel"
+            },
+            {
+              "op": "play",
+              "target": "eq",
+              "animation": "write",
+              "duration": 1.5
+            },
+            {
+              "op": "highlight",
+              "target": "eq",
+              "duration": 1.0,
+              "properties": {
+                "color": "warn"
+              }
+            },
+            {
+              "op": "custom",
+              "code": "print('boundary')"
+            }
+          ]
+        }
+      ]
+    },
+    "expectValid": false
+  },
+  {
+    "name": "parent_cycle",
+    "document": {
+      "schema": "sci-ir/1",
+      "id": "sample_2d",
+      "title": "Sample 2D",
+      "sceneType": "scene_2d",
+      "objects": [
+        {
+          "id": "panel",
+          "type": "ui.panel",
+          "properties": {
+            "width": 6.0,
+            "height": 3.0,
+            "title": "Panel"
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              1.0,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          },
+          "parentId": "eq"
+        },
+        {
+          "id": "eq",
+          "type": "math.formula",
+          "properties": {
+            "source": "tau = J(theta).T @ F",
+            "fontSize": 40
+          },
+          "transform": {
+            "position": [
+              2.0,
+              -0.5,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          },
+          "parentId": "panel"
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eq",
+          "source": "tau = J(theta).T @ F",
+          "terms": {
+            "Jt": "J(theta).T"
+          },
+          "bindings": {
+            "theta": {
+              "kind": "literal",
+              "value": 0.6
+            }
+          },
+          "highlights": [
+            "J(theta).T"
+          ]
+        }
+      ],
+      "values": [
+        {
+          "id": "energy",
+          "source": {
+            "kind": "derived",
+            "expr": "a * b + 1",
+            "inputs": {
+              "a": {
+                "kind": "literal",
+                "value": 2
+              },
+              "b": {
+                "kind": "literal",
+                "value": 3
+              }
+            }
+          },
+          "format": "E = {value:.2f}"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "link",
+          "kind": "arrow",
+          "sources": [
+            "panel",
+            "eq"
+          ],
+          "live": true
+        }
+      ],
+      "bindings": {
+        "theta": {
+          "kind": "literal",
+          "value": 0.6
+        }
+      },
+      "timeline": [
+        {
+          "id": "s1",
+          "title": "Intro",
+          "steps": [
+            {
+              "op": "show",
+              "target": "panel"
+            },
+            {
+              "op": "play",
+              "target": "eq",
+              "animation": "write",
+              "duration": 1.5
+            },
+            {
+              "op": "highlight",
+              "target": "eq",
+              "duration": 1.0,
+              "properties": {
+                "color": "warn"
+              }
+            },
+            {
+              "op": "custom",
+              "code": "print('boundary')"
+            }
+          ]
+        }
+      ]
+    },
+    "expectValid": false
+  },
+  {
+    "name": "bad_relationship_kind",
+    "document": {
+      "schema": "sci-ir/1",
+      "id": "sample_2d",
+      "title": "Sample 2D",
+      "sceneType": "scene_2d",
+      "objects": [
+        {
+          "id": "panel",
+          "type": "ui.panel",
+          "properties": {
+            "width": 6.0,
+            "height": 3.0,
+            "title": "Panel"
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              1.0,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        },
+        {
+          "id": "eq",
+          "type": "math.formula",
+          "properties": {
+            "source": "tau = J(theta).T @ F",
+            "fontSize": 40
+          },
+          "transform": {
+            "position": [
+              2.0,
+              -0.5,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eq",
+          "source": "tau = J(theta).T @ F",
+          "terms": {
+            "Jt": "J(theta).T"
+          },
+          "bindings": {
+            "theta": {
+              "kind": "literal",
+              "value": 0.6
+            }
+          },
+          "highlights": [
+            "J(theta).T"
+          ]
+        }
+      ],
+      "values": [
+        {
+          "id": "energy",
+          "source": {
+            "kind": "derived",
+            "expr": "a * b + 1",
+            "inputs": {
+              "a": {
+                "kind": "literal",
+                "value": 2
+              },
+              "b": {
+                "kind": "literal",
+                "value": 3
+              }
+            }
+          },
+          "format": "E = {value:.2f}"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "link",
+          "kind": "teleport",
+          "sources": [
+            "panel",
+            "eq"
+          ],
+          "live": true
+        }
+      ],
+      "bindings": {
+        "theta": {
+          "kind": "literal",
+          "value": 0.6
+        }
+      },
+      "timeline": [
+        {
+          "id": "s1",
+          "title": "Intro",
+          "steps": [
+            {
+              "op": "show",
+              "target": "panel"
+            },
+            {
+              "op": "play",
+              "target": "eq",
+              "animation": "write",
+              "duration": 1.5
+            },
+            {
+              "op": "highlight",
+              "target": "eq",
+              "duration": 1.0,
+              "properties": {
+                "color": "warn"
+              }
+            },
+            {
+              "op": "custom",
+              "code": "print('boundary')"
+            }
+          ]
+        }
+      ]
+    },
+    "expectValid": false
+  },
+  {
+    "name": "future_schema",
+    "document": {
+      "schema": "sci-ir/2",
+      "id": "sample_2d",
+      "title": "Sample 2D",
+      "sceneType": "scene_2d",
+      "objects": [
+        {
+          "id": "panel",
+          "type": "ui.panel",
+          "properties": {
+            "width": 6.0,
+            "height": 3.0,
+            "title": "Panel"
+          },
+          "transform": {
+            "position": [
+              -2.5,
+              1.0,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        },
+        {
+          "id": "eq",
+          "type": "math.formula",
+          "properties": {
+            "source": "tau = J(theta).T @ F",
+            "fontSize": 40
+          },
+          "transform": {
+            "position": [
+              2.0,
+              -0.5,
+              0.0
+            ],
+            "rotation": 0.0,
+            "scale": 1.0
+          }
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eq",
+          "source": "tau = J(theta).T @ F",
+          "terms": {
+            "Jt": "J(theta).T"
+          },
+          "bindings": {
+            "theta": {
+              "kind": "literal",
+              "value": 0.6
+            }
+          },
+          "highlights": [
+            "J(theta).T"
+          ]
+        }
+      ],
+      "values": [
+        {
+          "id": "energy",
+          "source": {
+            "kind": "derived",
+            "expr": "a * b + 1",
+            "inputs": {
+              "a": {
+                "kind": "literal",
+                "value": 2
+              },
+              "b": {
+                "kind": "literal",
+                "value": 3
+              }
+            }
+          },
+          "format": "E = {value:.2f}"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "link",
+          "kind": "arrow",
+          "sources": [
+            "panel",
+            "eq"
+          ],
+          "live": true
+        }
+      ],
+      "bindings": {
+        "theta": {
+          "kind": "literal",
+          "value": 0.6
+        }
+      },
+      "timeline": [
+        {
+          "id": "s1",
+          "title": "Intro",
+          "steps": [
+            {
+              "op": "show",
+              "target": "panel"
+            },
+            {
+              "op": "play",
+              "target": "eq",
+              "animation": "write",
+              "duration": 1.5
+            },
+            {
+              "op": "highlight",
+              "target": "eq",
+              "duration": 1.0,
+              "properties": {
+                "color": "warn"
+              }
+            },
+            {
+              "op": "custom",
+              "code": "print('boundary')"
+            }
+          ]
+        }
+      ]
+    },
+    "expectValid": false
+  }
+]

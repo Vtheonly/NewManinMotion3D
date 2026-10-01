@@ -1,0 +1,6 @@
+{
+  "synth/protein.json": "hero designed protein (deterministic fold)",
+  "synth/ligand.json": "candidate ligand fragment",
+  "kinematics/joint_config.json": "PoE chain + obstacle configuration",
+  "attention/anchors.json": "TIF attention anchor set"
+}

@@ -1,0 +1,189 @@
+{
+  "camera": {
+    "backgroundColor": "bg",
+    "zoom": 0.92
+  },
+  "expressions": [],
+  "id": "wall_demo",
+  "objects": [
+    {
+      "id": "wall",
+      "properties": {
+        "cellHeight": 1.5,
+        "cellWidth": 1.5,
+        "columns": 3,
+        "gap": 0.24,
+        "rows": 2
+      },
+      "type": "ui.grid"
+    },
+    {
+      "id": "prot_0",
+      "properties": {
+        "representation": "trace",
+        "residues": 18,
+        "seed": 3
+      },
+      "transform": {
+        "position": [
+          -1,
+          0.5,
+          0
+        ],
+        "rotation": 0,
+        "scale": 0.5
+      },
+      "type": "biology.protein"
+    },
+    {
+      "id": "stamp_0",
+      "properties": {
+        "verdict": "fail"
+      },
+      "transform": {
+        "position": [
+          -1,
+          -0.6,
+          0
+        ],
+        "rotation": 0,
+        "scale": 0.62
+      },
+      "type": "ui.stamp"
+    },
+    {
+      "id": "prot_1",
+      "properties": {
+        "representation": "trace",
+        "residues": 22,
+        "seed": 4
+      },
+      "transform": {
+        "position": [
+          0,
+          0.5,
+          0
+        ],
+        "rotation": 0,
+        "scale": 0.5
+      },
+      "type": "biology.protein"
+    },
+    {
+      "id": "stamp_1",
+      "properties": {
+        "verdict": "ok"
+      },
+      "transform": {
+        "position": [
+          0,
+          -0.6,
+          0
+        ],
+        "rotation": 0,
+        "scale": 0.62
+      },
+      "type": "ui.stamp"
+    },
+    {
+      "id": "prot_2",
+      "properties": {
+        "representation": "trace",
+        "residues": 26,
+        "seed": 5
+      },
+      "transform": {
+        "position": [
+          1,
+          0.5,
+          0
+        ],
+        "rotation": 0,
+        "scale": 0.5
+      },
+      "type": "biology.protein"
+    },
+    {
+      "id": "stamp_2",
+      "properties": {
+        "verdict": "fail"
+      },
+      "transform": {
+        "position": [
+          1,
+          -0.6,
+          0
+        ],
+        "rotation": 0,
+        "scale": 0.62
+      },
+      "type": "ui.stamp"
+    },
+    {
+      "id": "scorer",
+      "properties": {
+        "layers": [
+          4,
+          6,
+          1
+        ],
+        "seed": 11
+      },
+      "transform": {
+        "position": [
+          4.5,
+          0,
+          0
+        ],
+        "rotation": 0,
+        "scale": 0.85
+      },
+      "type": "nn.network"
+    }
+  ],
+  "relationships": [],
+  "sceneType": "moving_camera",
+  "schema": "sci-ir/1",
+  "timeline": [
+    {
+      "id": "reveal",
+      "steps": [
+        {
+          "op": "show",
+          "target": "wall"
+        },
+        {
+          "animation": "grow",
+          "duration": 0.6,
+          "op": "play",
+          "rate": "smooth",
+          "target": "stamp_0"
+        },
+        {
+          "animation": "grow",
+          "duration": 0.6,
+          "op": "play",
+          "rate": "smooth",
+          "target": "stamp_1"
+        },
+        {
+          "animation": "grow",
+          "duration": 0.6,
+          "op": "play",
+          "rate": "smooth",
+          "target": "stamp_2"
+        },
+        {
+          "duration": 2,
+          "op": "camera",
+          "properties": {
+            "zoom": 1.12
+          }
+        }
+      ],
+      "title": "Reveal"
+    }
+  ],
+  "title": "Wall Demo",
+  "values": []
+}
