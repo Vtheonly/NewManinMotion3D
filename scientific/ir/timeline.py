@@ -91,6 +91,18 @@ def validate_step(step: Step) -> list[str]:
             problems.append("play step requires a target")
     if step.op in ("show", "highlight", "annotate", "transform") and not step.target:
         problems.append(f"{step.op} step requires a target")
+    if step.op == "set" and not step.target:
+        problems.append("set step requires a target symbol")
+    if step.op == "interpolate" and not step.target:
+        problems.append("interpolate step requires a target symbol")
+    if step.op == "transition":
+        if not step.target:
+            problems.append("transition step requires a machine id")
+        props = step.properties or {}
+        if not props.get("to") and not props.get("event"):
+            problems.append("transition step requires 'to' or 'event'")
+    if step.op == "compare" and not step.target:
+        problems.append("compare step requires a comparison id")
     if step.duration is not None and float(step.duration) < 0:
         problems.append("duration must be >= 0")
     return problems

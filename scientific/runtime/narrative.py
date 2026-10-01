@@ -13,7 +13,12 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 class NarrativeMixin:
-    """stage()/highlight()/annotate()/custom() for ScientificScene."""
+    """stage()/custom()/validate()/to_json() for ScientificScene.
+
+    Quick ``highlight``/``annotate`` actions live in StatefulMixin so the
+    Suprepto signatures (behaviors, providers) and the legacy calls share
+    one implementation.
+    """
 
     _stage_counter: int
     _current_stage: Optional[StageBuilder]
@@ -40,13 +45,6 @@ class NarrativeMixin:
         stage, builder = make_stage("stage_01", "")
         self.document.add_stage(stage)
         return builder
-
-    def highlight(self: "ScientificScene", target: str,
-                  color: Optional[str] = None) -> None:
-        self._auto_stage().highlight(target, color=color)
-
-    def annotate(self: "ScientificScene", target: str, value: str) -> None:
-        self._auto_stage().annotate(target, value)
 
     def custom(self: "ScientificScene", code: str) -> None:
         self._auto_stage().custom(code)

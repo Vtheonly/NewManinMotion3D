@@ -57,12 +57,27 @@ def _load(path: Path) -> Any:
                 return [dict(row) for row in csv.DictReader(fh)]
         if path.suffix in (".txt", ".md"):
             return path.read_text(encoding="utf-8")
+        if path.suffix in (".npy", ".npz"):
+            return _load_numpy(path)
     except (json.JSONDecodeError, OSError) as exc:
         raise DataError(f"could not load data source {path.name}: {exc}") from None
     raise DataError(
         f"unsupported data format {path.suffix!r} for {path.name} "
-        "(supported: .json, .csv, .txt)"
+        "(supported: .json, .csv, .txt, .npy, .npz)"
     )
+
+
+def _load_numpy(path: Path) -> Any:
+    """NumPy arrays when numpy is installed; clear error otherwise."""
+    try:
+        import numpy  # optional dependency
+    except ImportError:
+        raise DataError(
+            f"{path.name} needs numpy, which is not installed") from None
+    if path.suffix == ".npy":
+        return numpy.load(path).tolist()
+    with numpy.load(path) as archive:
+        return {name: archive[name].tolist() for name in archive.files}
 
 
 def lookup(payload: Any, key: str | None) -> Any:

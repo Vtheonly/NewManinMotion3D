@@ -17,6 +17,7 @@ from .node import validate_space
 from .relationship import validate_kind
 from .schema import STEP_OPS
 from .timeline import validate_step
+from .validate_ext import validate_state_sections
 
 PropertyGetter = Callable[[str], dict]
 
@@ -105,9 +106,11 @@ def validate_document(doc: SceneDocument, registry=None) -> list[dict]:
                 continue  # already a structural error; validate_step reports it
             for problem in validate_step(step):
                 errors.append({"path": f"timeline/{stage.id}", "message": problem})
-            if step.target and step.target not in known_targets:
+            if step.target and step.target not in known_targets \
+                    and step.op not in ("set", "interpolate", "transition", "compare"):
                 errors.append({"path": f"timeline/{stage.id}/{step.target}",
                                "message": f"step targets unknown id '{step.target}'"})
+    errors.extend(validate_state_sections(doc))
     return errors
 
 

@@ -1,7 +1,8 @@
 """SceneDocument — the canonical, serializable scientific scene.
 
-Holds objects, expressions, live values, relationships, bindings, timeline,
-camera and presentation state.  Serialization is deterministic (stable field
+Objects, expressions, live values, relationships, bindings, timeline,
+camera, presentation state and the Suprepto sections (state / machines /
+comparisons / annotations).  Serialization is deterministic (stable field
 order, no timestamps) so identical scenes produce identical JSON and
 identical exported Python.
 """
@@ -10,14 +11,20 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from .annotation import AnnotationSpec, ComparisonSpec  # noqa: F401 (re-export)
+from .document_sections import SupreptoSectionsMixin
 from .errors import IRError
 from .expression import Expression, LiveValue
 from .node import SceneNode, Transform, node_parents_form_cycle
 from .relationship import Relationship
 from .schema import SCENE_TYPES, SCHEMA
+from .state import (  # noqa: F401 (re-export)
+    DerivedSpec, StateMachineSpec, StateSymbolSpec, TransitionSpec,
+)
 from .timeline import Stage, Step
 
-class SceneDocument:
+
+class SceneDocument(SupreptoSectionsMixin):
     def __init__(self, id: str, title: str = "", scene_type: str = "scene_2d",
                  camera: Optional[dict] = None, metadata: Optional[dict] = None,
                  presentation: Optional[dict] = None):
@@ -36,6 +43,7 @@ class SceneDocument:
         self.relationships: dict[str, Relationship] = {}
         self.bindings: dict[str, Any] = {}
         self.timeline: list[Stage] = []
+        self._init_sections()  # Suprepto: state/machines/comparisons
 
     # ── construction ────────────────────────────────────────────────
     def add_node(self, node: SceneNode) -> SceneNode:
@@ -49,8 +57,8 @@ class SceneDocument:
         if expr.id in self.expressions:
             raise IRError(f"duplicate expression id {expr.id!r}")
         self.expressions[expr.id] = expr
-        # Canonical invariant: every expression has a paired math.formula
-        # artifact (see docs/development/architecture/SCENE-IR.md).
+        # canonical invariant: every expression has a paired math.formula
+        # node (SCENE-IR.md) — created here when absent
         if expr.id not in self.objects:
             self.add_node(SceneNode(
                 id=expr.id, type="math.formula",
@@ -92,59 +100,25 @@ class SceneDocument:
 
     # ── serialization ───────────────────────────────────────────────
     def to_dict(self) -> dict:
-        out: dict[str, Any] = {
-            "schema": self.schema,
-            "id": self.id,
-            "title": self.title,
-            "sceneType": self.scene_type,
-        }
-        if self.camera:
-            out["camera"] = self.camera
-        if self.metadata:
-            out["metadata"] = self.metadata
-        out["objects"] = [n.to_dict() for n in self.objects.values()]
-        out["expressions"] = [e.to_dict() for e in self.expressions.values()]
-        out["values"] = [v.to_dict() for v in self.values.values()]
-        out["relationships"] = [r.to_dict() for r in self.relationships.values()]
-        if self.bindings:
-            out["bindings"] = self.bindings
-        out["timeline"] = [s.to_dict() for s in self.timeline]
-        if self.presentation:
-            out["presentation"] = self.presentation
-        return out
+        from .document_io import document_to_dict
+        return document_to_dict(self)
 
     @classmethod
     def from_dict(cls, data: dict) -> "SceneDocument":
-        doc = cls(
-            id=data["id"],
-            title=data.get("title", ""),
-            scene_type=data.get("sceneType", "scene_2d"),
-            camera=data.get("camera"),
-            metadata=data.get("metadata"),
-            presentation=data.get("presentation"),
-        )
-        doc.schema = data.get("schema", SCHEMA)
-        for raw in data.get("objects", []):
-            doc.add_node(SceneNode.from_dict(raw))
-        for raw in data.get("expressions", []):
-            # paired nodes either came from the objects list above or are
-            # created here with the canonical source property
-            doc.add_expression(Expression.from_dict(raw))
-        for raw in data.get("values", []):
-            doc.add_value(LiveValue.from_dict(raw))
-        for raw in data.get("relationships", []):
-            doc.add_relationship(Relationship.from_dict(raw))
-        doc.bindings = dict(data.get("bindings") or {})
-        for raw in data.get("timeline", []):
-            doc.add_stage(Stage.from_dict(raw))
-        return doc
+        from .document_io import populate_document
+        doc = cls(id=data["id"], title=data.get("title", ""),
+                  scene_type=data.get("sceneType", "scene_2d"),
+                  camera=data.get("camera"),
+                  metadata=data.get("metadata"),
+                  presentation=data.get("presentation"))
+        return populate_document(doc, data)
 
     def semantic_equal(self, other: "SceneDocument") -> bool:
-        """Equality by canonical content (number forms and key order
-        normalized) — used by round-trip tests."""
+        """Equality by canonical JSON — used by round-trip tests."""
         from .serialize import to_json
         return to_json(self) == to_json(other)
 
     def has_parent_cycles(self) -> list[str]:
-        """Return ids whose parent chain contains a cycle."""
-        return [nid for nid in self.objects if node_parents_form_cycle(self.objects, nid)]
+        """Ids whose parent chain contains a cycle."""
+        return [nid for nid in self.objects
+                if node_parents_form_cycle(self.objects, nid)]

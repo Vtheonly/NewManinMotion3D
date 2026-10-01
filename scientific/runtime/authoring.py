@@ -10,9 +10,12 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from ..ir import (
-    Expression, IRError, LiveValue, Relationship, SceneNode, Transform,
+    AnnotationSpec, ComparisonSpec, DerivedSpec, Expression, IRError,
+    LiveValue, MetricSpec, Relationship, SceneNode, StateMachineSpec,
+    StateSymbolSpec, Transform, TransitionSpec,
 )
 from .narrative import NarrativeMixin
+from .stateful import StatefulMixin
 
 PLACEMENT_KEYS = ("position", "rotation", "scale", "parent", "space", "label")
 
@@ -34,7 +37,7 @@ def _transform_from(placement: dict) -> Transform:
         rotation=float(rotation), scale=float(scale))
 
 
-class ScientificScene(NarrativeMixin):
+class ScientificScene(NarrativeMixin, StatefulMixin):
     def __init__(self, id: str, title: str = "", scene_type: str = "scene_2d",
                  camera: Optional[dict] = None, metadata: Optional[dict] = None):
         from ..ir import SceneDocument

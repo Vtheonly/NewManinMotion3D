@@ -24,12 +24,20 @@ SPACES = ("scene2d", "world3d")
 STEP_OPS = (
     "show", "play", "highlight", "annotate", "wait",
     "camera", "transform", "custom",
+    # Suprepto state/machine/comparison extensions (#4/#5/#11):
+    "set", "interpolate", "transition", "compare",
 )
 
 # Animation verbs accepted by the "play" op (rendered by manim_adapter).
 ANIMATION_NAMES = (
     "write", "create", "uncreate", "fade_in", "fade_out",
     "grow", "indicate", "draw", "shift_in",
+)
+
+# Rates accepted by "play"/"interpolate" steps.
+RATE_NAMES = (
+    "linear", "smooth", "ease_in", "ease_out", "ease_in_out",
+    "there_and_back", "rush_into", "rush_from",
 )
 
 

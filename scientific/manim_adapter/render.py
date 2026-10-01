@@ -18,9 +18,17 @@ from .context import RenderContext
 def render_document(scene: Any, document: SceneDocument,
                     data_root: Optional[str] = None) -> RenderContext:
     from . import bindings  # noqa: F401  (registers all renderers)
-    ctx = RenderContext(document=document, data_root=data_root or "")
+    from ..diagnostics import Diagnostics
+    ctx = RenderContext(document=document, data_root=data_root or "",
+                        diagnostics=Diagnostics(
+                            scene_id=document.id,
+                            schema=document.schema,
+                            data_root=str(data_root or "")))
     apply_camera(scene, document.camera, document.scene_type)
     ctx.resolve_values()
+    for ref in _data_provenance(document):
+        ctx.diagnostics.provenance_add(ref)
+    ctx.diagnostics.snapshot(ctx.values)
 
     revealed: set[str] = set()
     for node_id in _build_order(document):
@@ -35,7 +43,18 @@ def render_document(scene: Any, document: SceneDocument,
     from .timeline import attach_pending, play_timeline
     attach_pending(scene, ctx, revealed)
     play_timeline(scene, ctx, revealed=revealed)
+    ctx.diagnostics.snapshot(ctx.values)
     return ctx
+
+
+def _data_provenance(document: SceneDocument) -> list[str]:
+    """Every DataRef path used by bindings and live values (sorted)."""
+    refs = set()
+    for source in list(document.bindings.values()) + \
+            [v.source for v in document.values.values()]:
+        if isinstance(source, dict) and source.get("kind") == "data":
+            refs.add(str(source.get("ref", "")))
+    return sorted(refs)
 
 
 def _build_order(document: SceneDocument) -> list[str]:

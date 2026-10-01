@@ -23,8 +23,7 @@ from scientific.export.emitter import BASE_CLASSES, scene_class_name
 REPO = Path(__file__).resolve().parents[2]
 SCENES = REPO / "presentation" / "scenes"
 HAS_MANIM = importlib.util.find_spec("manim") is not None
-HAS_VENV = Path("/home/z/venv-sci/bin/python").exists()
-PYTHON = "/home/z/venv-sci/bin/python" if HAS_VENV else sys.executable
+PYTHON = sys.executable if HAS_MANIM else "python3"
 
 
 def sample_document(scene_type="scene_2d", camera=None) -> SceneDocument:
@@ -169,7 +168,7 @@ class ReferenceSceneTests(unittest.TestCase):
             self.assertIn(code, source)
 
 
-@unittest.skipUnless(HAS_MANIM and HAS_VENV, "manim runtime not available")
+@unittest.skipUnless(HAS_MANIM, "manim runtime not available")
 class ExecutionTests(unittest.TestCase):
     """Exported Python must actually execute (the real Manim pipeline)."""
 
