@@ -3,8 +3,14 @@
     <!-- Top Bar -->
     <Topbar />
 
+    <!-- Scientific editor mode (#29): Suprepto IR editor replaces the
+         visual canvas + inspector + timeline -->
+    <template v-if="isSciMode">
+      <SciEditor class="flex-1 min-h-0" />
+    </template>
+
     <!-- Main: Sidebar | Canvas/Code | Properties -->
-    <div class="flex-1 flex overflow-hidden min-h-0">
+    <div v-else class="flex-1 flex overflow-hidden min-h-0">
       <AssetSidebar />
       <div class="flex-1 min-w-0 flex flex-col relative" style="background: var(--studio-bg);">
         <!-- Stage / Code toggle pill (hidden in code-only mode) -->
@@ -91,8 +97,8 @@
       <PropertiesPanel v-if="!isCodeMode" />
     </div>
 
-    <!-- Bottom Timeline (hidden in code-only mode) -->
-    <Timeline v-if="!isCodeMode" />
+    <!-- Bottom Timeline (visual mode only) -->
+    <Timeline v-if="!isCodeMode && !isSciMode" />
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- Export Dialog (client-side .py download) -->
@@ -293,10 +299,12 @@ import AssetSidebar from './components/sidebar/AssetSidebar.vue';
 import StageCanvas from './components/stage/StageCanvas.vue';
 import PropertiesPanel from './components/inspector/PropertiesPanel.vue';
 import Timeline from './components/timeline/Timeline.vue';
+import SciEditor from './components/sci/SciEditor.vue';
+import { enterScientificMode, syncSciToProject } from './sci/bridge.js';
 
 export default {
   name: 'App',
-  components: { Topbar, AssetSidebar, StageCanvas, PropertiesPanel, Timeline },
+  components: { Topbar, AssetSidebar, StageCanvas, PropertiesPanel, Timeline, SciEditor },
 
   data() {
     return {
@@ -324,6 +332,7 @@ export default {
   computed: {
     store()              { return store; },
     isCodeMode()         { return store.project.editorMode === 'code'; },
+    isSciMode()          { return store.project.editorMode === 'scientific'; },
     error()              { return store.error; },
     showExport()         { return store.showExportDialog; },
     exportCode()         { return store.exportCode; },
@@ -371,12 +380,26 @@ export default {
       handler() { if (!this.isCodeMode && this.stageViewMode === 'code' && !this.codeEdited) this._debouncedUpdateCode(); },
       deep: true
     },
+    // Re-boot the Suprepto editor whenever the project is swapped in
+    // (load/import/server) — the editorMode watcher alone would miss
+    // scientific → scientific transitions.
+    'store.project': {
+      handler(project) {
+        if (project && project.editorMode === 'scientific') enterScientificMode();
+      }
+    },
     'store.project.editorMode': {
       handler(mode) {
-        if (mode === 'code') {
-          this.stageViewMode = 'code';
-          this.stageCode = store.project.codeSource || '';
-          this.codeEdited = false;
+        if (mode === 'scientific') {
+          // Boot the Suprepto editor from the persisted document (#29)
+          enterScientificMode();
+        } else {
+          syncSciToProject();   // leaving scientific: keep the document
+          if (mode === 'code') {
+            this.stageViewMode = 'code';
+            this.stageCode = store.project.codeSource || '';
+            this.codeEdited = false;
+          }
         }
       },
       immediate: true

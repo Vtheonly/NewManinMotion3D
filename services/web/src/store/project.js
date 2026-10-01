@@ -12,6 +12,20 @@
 
 import Vue from 'vue';
 import api from '../api.js';
+import { store as sciStore } from '../sci/store.js';
+import { toDict as sciToDict } from '../sci/document.js';
+
+/** Carry the edited sci-ir/1 document into the project (issue #29). */
+function syncSciDocument() {
+  if (store.project.editorMode !== 'scientific') return null;
+  store.project.sciDocument = sciToDict(sciStore.document);
+  return store.project.sciDocument;
+}
+
+/** Document snapshot for the render-sci endpoint. */
+function sciDocumentForRender() {
+  return syncSciDocument();
+}
 
 const MAX_HISTORY = 50;
 
@@ -30,8 +44,9 @@ function createDefaultProject(editorMode = 'visual', sceneType = 'scene_2d') {
   return {
     id: null,
     name: 'My Animation',
-    editorMode,          // 'visual' | 'code'
+    editorMode,          // 'visual' | 'code' | 'scientific' (#29)
     codeSource: editorMode === 'code' ? CODE_MODE_TEMPLATE : '',
+    sciDocument: null,   // sci-ir/1 document when editorMode === 'scientific'
     sceneType,           // 'scene_2d' | 'moving_camera' | 'three_d' | 'custom' (Issue #1)
     scene: { className: 'MainScene' },   // generated class name / custom base
     camera: {},          // per-scene-type camera config (zoom, phi, theta, ...)
@@ -713,7 +728,11 @@ export const actions = {
   // Local Project I/O  (file-based, existing behaviour)
   // ══════════════════════════════════════════════════════════════════════════
 
-  exportJSON() { return JSON.stringify(JSON.parse(JSON.stringify(store.project)), null, 2); },
+  exportJSON() {
+    // Scientific mode: persist the edited document with the project (#29).
+    if (store.project.editorMode === 'scientific') { syncSciDocument(); }
+    return JSON.stringify(JSON.parse(JSON.stringify(store.project)), null, 2);
+  },
 
   importJSON(jsonStr) {
     try {
@@ -724,6 +743,7 @@ export const actions = {
       if (!data.groups) data.groups = [];
       if (!data.editorMode) data.editorMode = 'visual';
       if (data.codeSource === undefined) data.codeSource = '';
+      if (data.sciDocument === undefined) data.sciDocument = null;
       migrateProjectSchema(data);
       store.project = data;
       store.selectedObjectIds = [];
@@ -815,6 +835,9 @@ export const actions = {
     store.savingToServer = true;
     store.loading = true;
     try {
+      // Scientific mode: carry the edited document into the project (#29)
+      if (store.project.editorMode === 'scientific') { syncSciDocument(); }
+
       // 1. Create on server if no project ID (pass scene type — Issue #1)
       if (!store.project.id) {
         const created = await api.projects.create(
@@ -885,6 +908,7 @@ export const actions = {
       if (!project.groups) project.groups = [];
       if (!project.editorMode) project.editorMode = 'visual';
       if (project.codeSource === undefined) project.codeSource = '';
+      if (project.sciDocument === undefined) project.sciDocument = null;
       migrateProjectSchema(project);
 
       store.project = project;
@@ -950,12 +974,17 @@ export const actions = {
       store.renderStatus = 'saving';
       const projectId = await actions.saveToServer();
 
-      // 2. Trigger render (code mode sends raw source; visual mode uses compiled pipeline)
+      // 2. Trigger render
       //    Code-mode scene classes are auto-detected server-side (Issue #1):
       //    any Scene / MovingCameraScene / ThreeDScene / custom class renders.
+      //    Scientific mode emits runnable Python from the IR and renders
+      //    through the same job queue (issue #29 §7).
       store.renderStatus = 'queued';
       let result;
-      if (store.project.editorMode === 'code') {
+      if (store.project.editorMode === 'scientific') {
+        const { ir } = await import('../sci/client.js');
+        result = await ir.render(projectId, sciDocumentForRender(), quality);
+      } else if (store.project.editorMode === 'code') {
         result = await api.projects.renderCode(projectId, {
           quality,
           codeSource: store.project.codeSource

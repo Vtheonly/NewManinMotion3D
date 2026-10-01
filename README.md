@@ -9,6 +9,8 @@
 
 **v1.3.0:** A canonical **scientific scene runtime** (`sci-ir/1`) now powers Code-Only mode: author scenes through a typed Python API (proteins, MLPs, torus flows, PoE chains, attention, formulas with live values), export/import them losslessly, and render them through the same pipeline as the editor. See [docs/development/syntax/OVERVIEW.md](docs/development/syntax/OVERVIEW.md).
 
+**Suprepto:** the syntax grew a reactive state engine (keyframe/data-driven symbols, derived values), state machines, comparisons with real computed deltas, composable highlights and live annotations, a registry of 35 object types, the web **Scientific (IR)** editor mode with per-object timeline rows, end-to-end render verification (double-render frame hashing) and runtime diagnostics. The complete guide: [docs/development/syntax/SUPREPTO.md](docs/development/syntax/SUPREPTO.md).
+
 **v1.2.0:** Scene architecture is now plugin-based — visual projects can be **2D**, **2D moving-camera**, **3D** (`ThreeDScene`), or **custom scene classes**, and Code-Only mode auto-detects any scene class you write.
 </div>
 

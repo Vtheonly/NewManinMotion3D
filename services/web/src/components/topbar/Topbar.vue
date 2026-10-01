@@ -219,10 +219,19 @@
               <span class="np-mode-label">Code Only</span>
               <span class="np-mode-desc">Full Manim power, write Python directly</span>
             </button>
+            <button
+              class="np-mode-btn"
+              :class="{ active: newProjectMode === 'scientific' }"
+              @click="newProjectMode = 'scientific'"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M19.1 4.9l-2.8 2.8M7.7 16.3l-2.8 2.8"/></svg>
+              <span class="np-mode-label">Scientific (IR)</span>
+              <span class="np-mode-desc">Suprepto scenes: state, machines, graphs, Python export</span>
+            </button>
           </div>
 
           <!-- Scene type (Issue #1): 2D / moving camera / 3D -->
-          <template v-if="newProjectMode === 'visual'">
+          <template v-if="newProjectMode === 'visual' || newProjectMode === 'scientific'">
             <label class="np-label" style="margin-top:12px;">Scene Type</label>
             <div class="np-scene-row">
               <button
@@ -252,6 +261,7 @@
 <script>
 import { store, actions, SCENE_TYPES, getSceneTypeMeta } from '../../store/project.js';
 import { generateManimScript } from '../../export/manim.js';
+import { syncSciToProject } from '../../sci/bridge.js';
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 const mod = isMac ? '\u2318' : 'Ctrl+';
@@ -540,6 +550,10 @@ export default {
       actions.listServerProjects();
     },
     openExport() {
+      if (store.project.editorMode === 'scientific') {
+        this.exportScientific();
+        return;
+      }
       if (store.project.editorMode === 'code') {
         if (!store.project.codeSource || store.project.codeSource.trim().length === 0) {
           actions.setError('Write some Manim code first!'); return;
@@ -551,7 +565,23 @@ export default {
       }
       store.showExportDialog = true;
     },
+    async exportScientific() {
+      try {
+        const { ir } = await import('../../sci/client.js');
+        const document = syncSciToProject();
+        const result = await ir.export(document);
+        store.exportCode = result.python || result.code || '';
+        store.showExportDialog = true;
+      } catch (err) {
+        actions.setError(`Scientific export failed: ${err.message}`);
+      }
+    },
+
     openRender() {
+      if (store.project.editorMode === 'scientific') {
+        store.showRenderDialog = true;
+        return;
+      }
       if (store.project.editorMode === 'code') {
         if (!store.project.codeSource || store.project.codeSource.trim().length === 0) {
           actions.setError('Write some Manim code first!'); return;

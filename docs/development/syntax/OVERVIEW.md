@@ -9,9 +9,10 @@
    `scientific.ScientificScene` builder; the most expressive path.
 2. **IR JSON** — the serialized document; produced/consumed by the API and
    round-trips through Python unchanged.
-3. **Frontend editing** (arriving with #29) — generic editors against the
-   registry metadata; the IR is the storage format, never a frontend-only
-   schema.
+3. **Frontend editing** — the web editor's **Scientific (IR)** mode
+   (issue #29): registry-driven library, schema-driven generic inspector,
+   schematic canvas and a per-object timeline; the IR is the storage
+   format, never a frontend-only schema.
 
 All three are the same model: a document holds **objects** (artifacts),
 **expressions** (structured math), **values** (live numbers),
@@ -45,14 +46,17 @@ Validation rules (identical in Python and JS — `POST /api/ir/validate`):
   schema (unknown property, wrong type, bad enum, missing required).
 - `parentId` must exist and parent chains must be acyclic.
 - Relationship kinds are closed; sources must exist.
-- Timeline ops are closed (`show | play | highlight | annotate | wait |
-  camera | transform | custom`); `play` needs a known animation and a
+- Timeline ops are closed — the base eight (`show | play | highlight |
+  annotate | wait | camera | transform | custom`) plus the Suprepto
+  extensions `set | interpolate | transition | compare` (full reference:
+  [SUPREPTO.md](SUPREPTO.md) §8); `play` needs a known animation and a
   target; `custom` needs non-empty code; targets must exist.
 
 ## Topics
 
 | Document | Covers |
 |---|---|
+| [SUPREPTO.md](SUPREPTO.md) | **the complete guide** — reactive state, derived values, data-driven scenes, state machines, comparisons, highlights/annotations, the web editor, execution, export, verification |
 | [OBJECTS.md](OBJECTS.md) | nodes, transforms, parenting, relationships, built-in catalogue |
 | [MATHEMATICS.md](MATHEMATICS.md) | expression source syntax, terms, highlighting, latexification |
 | [DATA-BINDINGS.md](DATA-BINDINGS.md) | literal/data/derived/symbol sources, safe evaluator, live values |

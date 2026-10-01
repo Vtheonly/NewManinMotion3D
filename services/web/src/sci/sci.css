@@ -1,0 +1,32 @@
+/**
+ * Shared Suprepto editor styles (issue #29).
+ *
+ * Import once from SciEditor.vue; every sci component uses these utility
+ * classes instead of duplicating scoped copies (file-size rule + one
+ * visual language across panels).
+ */
+
+.sci-section-title {
+  @apply text-[9px] font-semibold uppercase tracking-wider text-studio-text-muted;
+}
+
+.sci-input {
+  @apply min-w-0 px-1.5 py-0.5 rounded-md bg-studio-bg border border-studio-border
+    text-[9px] text-studio-text focus:outline-none focus:border-studio-accent/50 font-mono;
+}
+
+.sci-btn {
+  @apply text-[9px] px-1.5 py-0.5 rounded bg-studio-bg border border-studio-border
+    text-studio-text-muted hover:text-studio-text transition-colors
+    disabled:opacity-40 disabled:cursor-not-allowed;
+}
+
+.sci-btn.danger { @apply hover:text-red-400; }
+
+.sci-row { @apply flex items-center gap-1 flex-wrap mb-1.5; }
+
+.sci-box { @apply border border-studio-border/60 rounded-lg p-1.5 mb-1.5; }
+
+.sci-label { @apply text-[9px] text-studio-text-muted; }
+
+.sci-btn.active { @apply text-studio-accent border-studio-accent/40; }
