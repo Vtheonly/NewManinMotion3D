@@ -9,7 +9,7 @@ import { Router } from 'express';
 import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { compileProject } from '../compiler/index.js';
+import { compileProject, pickScene } from '../compiler/index.js';
 import { enqueueRenderJob } from '../queue.js';
 
 const router = Router();
@@ -58,6 +58,9 @@ router.post('/', async (req, res, next) => {
       name,
       editorMode,
       codeSource,
+      sceneType: 'scene_2d',
+      scene: { className: 'MainScene' },
+      camera: {},
       stage: {
         width: 1920,
         height: 1080,
@@ -225,7 +228,8 @@ router.post('/:id/render', async (req, res, next) => {
     const projectData = await fs.readFile(projectPath, 'utf-8');
     const project = JSON.parse(projectData);
 
-    // Compile to Python
+    // Compile to Python (returns the actual scene class name — may be a
+    // MovingCameraScene / ThreeDScene / custom class, not just "MainScene")
     const assetsPath = path.join(req.dataDir, 'assets', projectId);
     const result = compileProject(project, assetsPath);
 
@@ -243,7 +247,11 @@ router.post('/:id/render', async (req, res, next) => {
     );
     await fs.writeFile(scenePath, result.code);
 
-    console.log(`[API] scene.py written for ${projectId} (${result.code.length} bytes)`);
+    console.log(`[API] scene.py written for ${projectId} (${result.code.length} bytes, scene: ${result.sceneName})`);
+
+    // Verify the generated scene class exists in the file (defence in depth;
+    // falls back to the first detected scene when it does not)
+    const picked = pickScene(result.code, result.sceneName) || { name: result.sceneName, detected: false };
 
     // Create render job
     const jobId = `job_${uuidv4().split('-')[0]}`;
@@ -252,7 +260,7 @@ router.post('/:id/render', async (req, res, next) => {
       jobId,
       projectId,
       sceneFile: `projects/${projectId}/scene.py`,
-      sceneName: 'MainScene',
+      sceneName: picked.name,
       quality
     });
 
@@ -272,10 +280,13 @@ router.post('/:id/render', async (req, res, next) => {
 /**
  * POST /api/projects/:id/render-code
  * Write raw user-supplied Manim code as scene.py and enqueue a render job.
+ * Scene classes are auto-detected from the source — users may write ANY
+ * scene class (Scene, MovingCameraScene, ThreeDScene, custom subclasses);
+ * the hardcoded "MainScene" assumption is gone.
  */
 router.post('/:id/render-code', async (req, res, next) => {
   try {
-    const { quality = 'medium', codeSource, sceneName = 'MainScene' } = req.body;
+    const { quality = 'medium', codeSource, sceneName } = req.body;
     const projectId = req.params.id;
 
     if (!codeSource || typeof codeSource !== 'string' || codeSource.trim().length === 0) {
@@ -288,7 +299,19 @@ router.post('/:id/render-code', async (req, res, next) => {
     const scenePath = path.join(projectDir, 'scene.py');
     await fs.writeFile(scenePath, codeSource);
 
-    console.log(`[API] code-mode scene.py written for ${projectId} (${codeSource.length} bytes)`);
+    // Scene detection: requested name wins if present, else first detected scene
+    const picked = pickScene(codeSource, sceneName);
+    if (!picked) {
+      return res.status(400).json({
+        error: 'No renderable scene class found',
+        message: 'Define at least one class inheriting from a Manim Scene base (e.g. class MyScene(Scene)).'
+      });
+    }
+    if (sceneName && sceneName !== picked.name) {
+      console.log(`[API] scene "${sceneName}" not found — using detected scene "${picked.name}"`);
+    }
+
+    console.log(`[API] code-mode scene.py written for ${projectId} (${codeSource.length} bytes, scene: ${picked.name})`);
 
     const jobId = `job_${uuidv4().split('-')[0]}`;
 
@@ -296,7 +319,7 @@ router.post('/:id/render-code', async (req, res, next) => {
       jobId,
       projectId,
       sceneFile: `projects/${projectId}/scene.py`,
-      sceneName,
+      sceneName: picked.name,
       quality
     });
 

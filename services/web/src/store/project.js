@@ -26,12 +26,15 @@ class MainScene(Scene):
         self.wait()
 `;
 
-function createDefaultProject(editorMode = 'visual') {
+function createDefaultProject(editorMode = 'visual', sceneType = 'scene_2d') {
   return {
     id: null,
     name: 'My Animation',
     editorMode,          // 'visual' | 'code'
     codeSource: editorMode === 'code' ? CODE_MODE_TEMPLATE : '',
+    sceneType,           // 'scene_2d' | 'moving_camera' | 'three_d' | 'custom' (Issue #1)
+    scene: { className: 'MainScene' },   // generated class name / custom base
+    camera: {},          // per-scene-type camera config (zoom, phi, theta, ...)
     stage: {
       width: 1920,
       height: 1080,
@@ -55,6 +58,46 @@ function createDefaultProject(editorMode = 'visual') {
     ],
     sceneDuration: 10
   };
+}
+
+// ─── Scene types (Issue #1 — mirrors the compiler scene registry) ───────────
+// Kept in sync with services/api/src/compiler/registry/scenes.js and
+// discoverable at runtime via GET /api/capabilities.
+
+export const SCENE_TYPES = [
+  { key: 'scene_2d',      label: '2D Scene',                 baseClass: 'Scene',              dimensionality: '2d',
+    cameraFields: [] },
+  { key: 'moving_camera', label: '2D — Moving Camera',       baseClass: 'MovingCameraScene',  dimensionality: '2d',
+    cameraFields: ['zoom', 'centerX', 'centerY', 'frameWidth', 'frameHeight'] },
+  { key: 'three_d',       label: '3D Scene',                 baseClass: 'ThreeDScene',        dimensionality: '3d',
+    cameraFields: ['phi', 'theta', 'distance', 'zoom', 'gamma'] },
+  { key: 'custom',        label: 'Custom Scene Class',       baseClass: null,                 dimensionality: '2d',
+    cameraFields: [] }
+];
+
+export function getSceneTypeMeta(key) {
+  return SCENE_TYPES.find(t => t.key === key) || SCENE_TYPES[0];
+}
+
+/**
+ * In-place migration of older project JSON to the v3 schema (Issue #1).
+ * Adds sceneType / scene / camera defaults when missing; keeps every
+ * existing field untouched. Used by importJSON and loadFromServer.
+ */
+function migrateProjectSchema(project) {
+  if (!project.sceneType) project.sceneType = 'scene_2d';
+  if (!project.scene) project.scene = { className: 'MainScene' };
+  if (!project.scene.className) project.scene.className = 'MainScene';
+  if (!project.camera) project.camera = {};
+  // Drop camera keys the current scene type does not understand (prevents
+  // e.g. 3D phi values leaking into a 2D moving-camera project)
+  const meta = getSceneTypeMeta(project.sceneType);
+  if (meta.key !== 'custom') {
+    for (const k of Object.keys(project.camera)) {
+      if (!meta.cameraFields.includes(k)) delete project.camera[k];
+    }
+  }
+  return project;
 }
 
 // ─── Reactive Store ──────────────────────────────────────────────────────────
@@ -634,6 +677,35 @@ export const actions = {
   // ══════════════════════════════════════════════════════════════════════════
 
   updateStage(u) { for (const k of Object.keys(u)) Vue.set(store.project.stage, k, u[k]); store.isDirty = true; },
+
+  /**
+   * Update scene identity / camera config (Issue #1).
+   * Changing the scene type keeps only camera keys the new type understands.
+   */
+  updateSceneConfig(u) {
+    if (u.sceneType !== undefined) {
+      Vue.set(store.project, 'sceneType', u.sceneType);
+      const meta = getSceneTypeMeta(u.sceneType);
+      if (meta.key !== 'custom' && store.project.camera) {
+        for (const k of Object.keys(store.project.camera)) {
+          if (!meta.cameraFields.includes(k)) Vue.delete(store.project.camera, k);
+        }
+      }
+    }
+    if (u.className !== undefined) Vue.set(store.project.scene, 'className', u.className);
+    if (u.baseClass !== undefined) Vue.set(store.project.scene, 'baseClass', u.baseClass);
+    store.isDirty = true;
+  },
+
+  /** Update a single camera property (clamped where meaningful). */
+  updateCamera(k, v) {
+    if (v === '' || v === null || v === undefined || Number.isNaN(Number(v))) {
+      Vue.delete(store.project.camera, k);
+    } else {
+      Vue.set(store.project.camera, k, Number(v));
+    }
+    store.isDirty = true;
+  },
   toggleGrid() { store.project.stage.gridVisible = !store.project.stage.gridVisible; },
   toggleSnap() { store.project.stage.snapEnabled = !store.project.stage.snapEnabled; },
 
@@ -652,6 +724,7 @@ export const actions = {
       if (!data.groups) data.groups = [];
       if (!data.editorMode) data.editorMode = 'visual';
       if (data.codeSource === undefined) data.codeSource = '';
+      migrateProjectSchema(data);
       store.project = data;
       store.selectedObjectIds = [];
       store.selectedClipId = null;
@@ -696,8 +769,8 @@ export const actions = {
     });
   },
 
-  newProject(name = 'My Animation', editorMode = 'visual') {
-    store.project = createDefaultProject(editorMode);
+  newProject(name = 'My Animation', editorMode = 'visual', sceneType = 'scene_2d') {
+    store.project = createDefaultProject(editorMode, sceneType);
     store.project.name = name;
     store.selectedObjectIds = [];
     store.selectedClipId = null;
@@ -742,9 +815,11 @@ export const actions = {
     store.savingToServer = true;
     store.loading = true;
     try {
-      // 1. Create on server if no project ID
+      // 1. Create on server if no project ID (pass scene type — Issue #1)
       if (!store.project.id) {
-        const created = await api.projects.create(store.project.name, store.project.editorMode);
+        const created = await api.projects.create(
+          store.project.name, store.project.editorMode, store.project.sceneType
+        );
         Vue.set(store.project, 'id', created.id);
       }
 
@@ -810,6 +885,7 @@ export const actions = {
       if (!project.groups) project.groups = [];
       if (!project.editorMode) project.editorMode = 'visual';
       if (project.codeSource === undefined) project.codeSource = '';
+      migrateProjectSchema(project);
 
       store.project = project;
       store.selectedObjectIds = [];
@@ -875,13 +951,14 @@ export const actions = {
       const projectId = await actions.saveToServer();
 
       // 2. Trigger render (code mode sends raw source; visual mode uses compiled pipeline)
+      //    Code-mode scene classes are auto-detected server-side (Issue #1):
+      //    any Scene / MovingCameraScene / ThreeDScene / custom class renders.
       store.renderStatus = 'queued';
       let result;
       if (store.project.editorMode === 'code') {
         result = await api.projects.renderCode(projectId, {
           quality,
-          codeSource: store.project.codeSource,
-          sceneName: 'MainScene'
+          codeSource: store.project.codeSource
         });
       } else {
         result = await api.projects.render(projectId, quality);

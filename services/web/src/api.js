@@ -36,10 +36,10 @@ export const projects = {
 
   get: (id) => request(`/projects/${id}`),
 
-  create: (name = 'My Animation', editorMode = 'visual') =>
+  create: (name = 'My Animation', editorMode = 'visual', sceneType = 'scene_2d') =>
     request('/projects', {
       method: 'POST',
-      body: JSON.stringify({ name, editorMode })
+      body: JSON.stringify({ name, editorMode, sceneType })
     }),
 
   update: (id, project) =>
@@ -57,11 +57,29 @@ export const projects = {
       body: JSON.stringify({ quality })
     }),
 
-  renderCode: (id, { quality = 'high', codeSource, sceneName = 'MainScene' }) =>
+  /**
+   * Render raw Manim source. sceneName is optional: when omitted, the
+   * server auto-detects scene classes (Scene / MovingCameraScene /
+   * ThreeDScene / custom) — Issue #1.
+   */
+  renderCode: (id, { quality = 'high', codeSource, sceneName } = {}) =>
     request(`/projects/${id}/render-code`, {
       method: 'POST',
-      body: JSON.stringify({ quality, codeSource, sceneName })
+      body: JSON.stringify({ quality, codeSource, ...(sceneName ? { sceneName } : {}) })
     })
+};
+
+// ─── Capabilities (Issue #1: registry discovery) ─────────────────────────────
+
+export const capabilities = {
+  /** Fetch registered object types / animations / scene types from the compiler registries */
+  get: () => request('/capabilities'),
+
+  /** Detect renderable scene classes in raw Python source (server-side detection) */
+  detectScenes: (codeSource) => request('/detect-scenes', {
+    method: 'POST',
+    body: JSON.stringify({ codeSource })
+  })
 };
 
 // ─── Assets ───────────────────────────────────────────────────────────────────

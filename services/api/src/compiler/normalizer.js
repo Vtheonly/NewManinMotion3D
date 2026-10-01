@@ -1,17 +1,44 @@
 /**
- * Project Normalizer — v2
+ * Project Normalizer — v3
  *
- * Applies defaults, clamps values, and prepares the new project schema
- * (stage/objects/tracks/clips/assets) for code generation.
+ * Applies defaults, clamps values, and prepares the project schema
+ * (scene/sceneType/camera/stage/objects/tracks/clips/assets) for code
+ * generation.
+ *
+ * v3 (Issue #1): normalizes the new scene identity + camera configuration
+ * and keeps every value within the bounds its scene type understands.
  */
+
+import { resolveSceneType } from './registry/scenes.js';
 
 /**
  * Normalize a validated project.
- * @param {Object} project - Validated project JSON (v2 schema)
+ * @param {Object} project - Validated project JSON (v3 schema)
  * @returns {Object} Normalized project ready for codegen
  */
 export function normalizeProject(project) {
   const norm = JSON.parse(JSON.stringify(project)); // deep clone
+
+  // ── Scene type + identity ──
+  norm.sceneType = norm.sceneType || 'scene_2d';
+  norm.scene = {
+    className: norm.scene?.className || 'MainScene',
+    ...(norm.scene || {})
+  };
+  if (norm.sceneType === 'custom' && !norm.scene.baseClass) {
+    // Defensive: validator rejects this, but never render with a broken base
+    norm.scene.baseClass = 'Scene';
+  }
+
+  // ── Camera: keep only finite numeric values ──
+  const cam = norm.camera || {};
+  const camOut = {};
+  for (const [k, v] of Object.entries(cam)) {
+    if (v === null || v === undefined) continue;
+    const n = typeof v === 'number' ? v : parseFloat(v);
+    if (Number.isFinite(n)) camOut[k] = n;
+  }
+  norm.camera = camOut;
 
   // ── Stage ──
   norm.stage = {
@@ -63,7 +90,21 @@ export function normalizeProject(project) {
     }))
   }));
 
+  // Expose the resolved scene type for codegen / API responses
+  norm._resolvedScene = describeSceneResolution(norm);
+
   return norm;
+}
+
+/** Human-readable scene resolution summary (metadata only, not used by codegen). */
+function describeSceneResolution(norm) {
+  const entry = resolveSceneType(norm);
+  return {
+    key: norm.sceneType,
+    baseClass: entry.baseClass,
+    dimensionality: entry.dimensionality,
+    className: norm.scene.className
+  };
 }
 
 function clamp(v, min, max) {

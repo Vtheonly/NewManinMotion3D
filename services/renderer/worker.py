@@ -2,6 +2,11 @@
 Manim Studio Renderer Worker
 
 Listens to Redis queue for render jobs, executes Manim, and stores results.
+
+Issue #1 (architecture decoupling): the worker no longer assumes a fixed
+"MainScene" class. When a job's scene name is missing or not present in
+the scene file, scene classes are auto-detected from the source via
+scene_detect.py (AST-based, never executes user code).
 """
 
 import os
@@ -12,6 +17,8 @@ import glob
 import shutil
 import redis
 from pathlib import Path
+
+from scene_detect import pick_scene
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
 DATA_DIR = os.environ.get("DATA_DIR", "/data")
@@ -73,6 +80,40 @@ def render_job(payload: dict) -> dict:
             "stderr": f"Scene file not found: {scene_file}"
         }
     
+    # ── Scene detection (Issue #1) ────────────────────────────────────────
+    # The requested scene name may be missing (legacy jobs), wrong, or the
+    # file may define a completely different class (custom / 3D / moving-
+    # camera scenes). Detect what actually exists and pick accordingly.
+    try:
+        with open(scene_file, "r", encoding="utf-8") as f:
+            scene_source = f.read()
+    except OSError as e:
+        return {
+            "ok": False,
+            "error": f"Could not read scene file: {e}",
+            "stdout": "",
+            "stderr": f"Could not read scene file: {e}"
+        }
+
+    picked = pick_scene(scene_source, scene_name)
+    if picked is None:
+        return {
+            "ok": False,
+            "error": (
+                f"No renderable scene class found in {os.path.basename(scene_file)} "
+                f"(requested: {scene_name}). Define a class inheriting from a "
+                "Manim Scene base, e.g. class MyScene(Scene)."
+            ),
+            "stdout": "",
+            "stderr": "No renderable scene class found in scene file"
+        }
+    if picked["name"] != scene_name:
+        print(
+            f"[render] Scene \"{scene_name}\" not found or not requested — "
+            f"rendering detected scene \"{picked['name']}\" instead"
+        )
+    scene_name = picked["name"]
+    
     # Clean up old renders to prevent stale output
     # Delete videos directory to force fresh render
     videos_dir = os.path.join(media_dir, "videos")
@@ -124,7 +165,8 @@ def render_job(payload: dict) -> dict:
             "stdout": result.stdout[-8000:] if result.stdout else "",
             "stderr": result.stderr[-8000:] if result.stderr else "",
             "outputPath": latest_link if output_video else None,
-            "exitCode": result.returncode
+            "exitCode": result.returncode,
+            "sceneName": scene_name
         }
         
     except subprocess.TimeoutExpired:
@@ -191,7 +233,8 @@ def main():
                 "stdout": str(result.get("stdout") or ""),
                 "stderr": str(result.get("stderr") or ""),
                 "outputPath": str(result.get("outputPath") or ""),
-                "error": str(result.get("error") or "")
+                "error": str(result.get("error") or ""),
+                "sceneName": str(result.get("sceneName") or "")
             })
             
             print(f"[renderer] Job {job_id} {status}")
