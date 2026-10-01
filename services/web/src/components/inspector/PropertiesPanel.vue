@@ -355,6 +355,34 @@
         </div>
       </Section>
 
+      <!-- Scene type & camera (Issue #1) -->
+      <Section label="Scene">
+        <div class="space-y-1.5">
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-studio-text-muted w-12">Type</span>
+            <select class="input input-sm flex-1" :value="sceneType" @change="setSceneType($event.target.value)">
+              <option v-for="st in sceneTypes" :key="st.key" :value="st.key">{{ st.label }}</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-studio-text-muted w-12">Class</span>
+            <input class="input input-sm flex-1" :value="scene.className || 'MainScene'" placeholder="MainScene" @change="uScene('className', $event.target.value)" />
+          </div>
+          <div v-if="sceneType === 'custom'" class="flex items-center gap-2">
+            <span class="text-[10px] text-studio-text-muted w-12">Base</span>
+            <input class="input input-sm flex-1" :value="scene.baseClass || ''" placeholder="MySceneBase" @change="uScene('baseClass', $event.target.value)" />
+          </div>
+        </div>
+      </Section>
+
+      <!-- Camera (fields depend on scene type — Issue #1) -->
+      <Section v-if="cameraFields.length > 0" label="Camera">
+        <div class="grid grid-cols-2 gap-1.5">
+          <Num v-for="f in cameraFields" :key="f.key" :label="f.label" :value="camera[f.key]" :step="f.step || 1" @input="uCam(f.key, $event)" />
+        </div>
+        <p class="text-[9px] text-studio-text-muted/50 mt-1.5 leading-relaxed">{{ cameraHint }}</p>
+      </Section>
+
       <!-- Grid Properties -->
       <Section label="Grid">
         <div class="space-y-1.5">
@@ -431,7 +459,7 @@
 </template>
 
 <script>
-import { store, actions, getters, ENTER_ANIMS, EXIT_ANIMS } from '../../store/project.js';
+import { store, actions, getters, ENTER_ANIMS, EXIT_ANIMS, SCENE_TYPES, getSceneTypeMeta } from '../../store/project.js';
 import { EASING_LIST } from '../../engine/easing.js';
 import { ANCHOR_GRID, ANCHOR_LABELS } from '../../constants/anchors.js';
 import FontSelector from './FontSelector.vue';
@@ -468,6 +496,26 @@ export default {
     objs() { return store.project.objects; },
     stg() { return store.project.stage; },
     groups() { return store.project.groups || []; },
+    scene() { return store.project.scene; },
+    camera() { return store.project.camera || {}; },
+    sceneType() { return store.project.sceneType || 'scene_2d'; },
+    sceneTypes() { return SCENE_TYPES; },
+    sceneTypeMeta() { return getSceneTypeMeta(this.sceneType); },
+    cameraFields() {
+      const labels = {
+        zoom: { label: 'Zoom', step: 0.05 }, centerX: { label: 'Center X', step: 0.5 },
+        centerY: { label: 'Center Y', step: 0.5 }, frameWidth: { label: 'Frame W', step: 0.5 },
+        frameHeight: { label: 'Frame H', step: 0.5 },
+        phi: { label: 'Phi (°)', step: 5 }, theta: { label: 'Theta (°)', step: 5 },
+        distance: { label: 'Distance', step: 0.5 }, gamma: { label: 'Gamma (°)', step: 5 }
+      };
+      return this.sceneTypeMeta.cameraFields.map(k => ({ key: k, ...labels[k] }));
+    },
+    cameraHint() {
+      if (this.sceneType === 'moving_camera') return 'Camera frame setup for MovingCameraScene. Leave empty for defaults.';
+      if (this.sceneType === 'three_d') return 'Initial 3D camera orientation (angles in degrees). Leave empty for Manim defaults.';
+      return '';
+    },
     easings() { return EASING_LIST; },
     enterAnims() { return ENTER_ANIMS; },
     exitAnims() { return EXIT_ANIMS; },
@@ -526,6 +574,9 @@ export default {
     uc(k, v) { if (this.clip) actions.updateClip(this.clip.id, { [k]: v }); },
     up(k, v) { if (this.clip) actions.updateClip(this.clip.id, { params: { ...(this.clip.params||{}), [k]: v } }); },
     uStage(k, v) { actions.updateStage({ [k]: v }); },
+    setSceneType(t) { actions.updateSceneConfig({ sceneType: t }); },
+    uScene(k, v) { actions.updateSceneConfig({ [k]: v }); },
+    uCam(k, v) { actions.updateCamera(k, v); },
     del() { if (this.obj) actions.deleteObject(this.obj.id); },
     delClip() { if (this.clip) actions.deleteClip(this.clip.id); },
     oName(id) { const o = getters.objectById(id); return o ? o.name : '(deleted)'; },

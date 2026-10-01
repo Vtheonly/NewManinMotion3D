@@ -6,6 +6,8 @@
   **A Figma-like visual animation editor powered by Manim.**  
   Build mathematical animations by dragging shapes, writing LaTeX, creating morphs, and rendering cinematic videos -- all from your browser.  
   Or switch to **Code-Only mode** and write raw Manim Python with full library access.
+
+**v1.2.0:** Scene architecture is now plugin-based — visual projects can be **2D**, **2D moving-camera**, **3D** (`ThreeDScene`), or **custom scene classes**, and Code-Only mode auto-detects any scene class you write.
 </div>
 
 <br>
@@ -357,7 +359,17 @@ For detailed technical docs of the entire codebase, see **[XTRA-BIG-README.md](X
 
 ## Changelog
 
-### v1.1.0 (current)
+### v1.2.0
+
+- **Architecture (issue #1):** Registry-based compiler — object types, animations, and scene types are data-driven plugins; adding capabilities no longer requires core compiler changes
+- **Scenes:** Visual projects support 2D / moving-camera (`MovingCameraScene` with zoom, center, frame size) / 3D (`ThreeDScene` with phi, theta, distance, gamma) / custom base classes; scene class name configurable
+- **Scene detection:** Renderer and API detect renderable scene classes in Python source (never executes code); Code-Only mode renders any `Scene`/`ThreeDScene`/custom class — hardcoded `MainScene` assumption removed
+- **API:** `GET /api/capabilities` (registry discovery), `POST /api/detect-scenes`; render endpoints return/use detected scene names
+- **Frontend:** Scene type picker in New Project dialog; Scene + Camera editors in Properties panel; project schema v3 with automatic migration of older projects
+- **Tests:** 65 new tests (API compiler suite, renderer scene detection, frontend scene suite)
+- **Docs:** `docs/development/` — architecture, roadmap, task registry, iteration reports, agent workflow
+
+### v1.1.0
 
 - **Feature**: Dual editor modes -- choose **Visual (UI)** or **Code Only** when creating a new project
 - **Feature**: Code-Only mode provides full Manim library access; write raw Python, render directly, see errors in-app

@@ -78,6 +78,132 @@ function isSystemFont(fontFamily) {
   return systemFonts.some(f => f.toLowerCase() === fontFamily.toLowerCase());
 }
 
+// ── Scene types (Issue #1 — mirrors the server compiler registry/scenes.js) ──
+
+import { getSceneTypeMeta } from '../store/project.js';
+
+/** Sanitize a scene class name into a valid Python identifier. */
+function safeClassName(name, fallback = 'MainScene') {
+  if (!name || typeof name !== 'string') return fallback;
+  const n = name.replace(/[^A-Za-z0-9_]/g, '_');
+  return /^[A-Za-z_]/.test(n) && n.length > 0 ? n : fallback;
+}
+
+/**
+ * Camera prologue lines per scene type — mirrors the server-side
+ * registry/scenes.js emitPrologue implementations. Keep both in sync.
+ */
+function cameraPrologue(project, sceneMeta) {
+  const cam = project.camera || {};
+  const num = v => {
+    const n = typeof v === 'number' ? v : parseFloat(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  if (sceneMeta.key === 'moving_camera') {
+    const zoom = num(cam.zoom), cx = num(cam.centerX), cy = num(cam.centerY);
+    const fw = num(cam.frameWidth), fh = num(cam.frameHeight);
+    const hasFrameCfg = (fw !== null && fw > 0) || (fh !== null && fh > 0);
+    if (hasFrameCfg || zoom !== null || cx !== null || cy !== null) {
+      const lines = ['# Camera frame'];
+      if (hasFrameCfg) {
+        lines.push(`self.camera.frame.width = ${fw > 0 ? fw.toFixed(3) : '14.222'}`);
+        if (fh !== null && fh > 0) lines.push(`self.camera.frame.height = ${fh.toFixed(3)}`);
+      }
+      if (zoom !== null && Math.abs(zoom - 1) > 0.001) lines.push(`self.camera.frame.scale(${zoom.toFixed(3)})`);
+      if (cx !== null || cy !== null) {
+        lines.push(`self.camera.frame.move_to([${cx ?? 0}, ${cy ?? 0}, 0])`);
+      }
+      return lines;
+    }
+    return [];
+  }
+
+  if (sceneMeta.key === 'three_d') {
+    const phi = num(cam.phi), theta = num(cam.theta);
+    const distance = num(cam.distance), zoom = num(cam.zoom), gamma = num(cam.gamma);
+    const kwargs = [];
+    if (phi !== null) kwargs.push(`phi=${(phi * Math.PI / 180).toFixed(4)}`);
+    if (theta !== null) kwargs.push(`theta=${(theta * Math.PI / 180).toFixed(4)}`);
+    if (distance !== null) kwargs.push(`distance=${distance.toFixed(3)}`);
+    if (zoom !== null && Math.abs(zoom - 1) > 0.001) kwargs.push(`zoom=${zoom.toFixed(3)}`);
+    if (gamma !== null) kwargs.push(`gamma=${(gamma * Math.PI / 180).toFixed(4)}`);
+    if (kwargs.length > 0) {
+      return ['# 3D camera orientation', `self.set_camera_orientation(${kwargs.join(', ')})`];
+    }
+    return [];
+  }
+
+  return [];
+}
+
+// ── Scene detection (Issue #1 — mirrors server sceneDetect.js) ───────────────
+
+const KNOWN_SCENE_BASES = [
+  'Scene', 'MovingCameraScene', 'ThreeDScene', 'VectorScene',
+  'ZoomedScene', 'SampleSpaceScene', 'LinearTransformationScene'
+];
+
+function stripCommentsAndStrings(source) {
+  let out = '', i = 0;
+  const n = source.length;
+  while (i < n) {
+    const c = source[i], c3 = source.slice(i, i + 3);
+    if (c3 === '"""' || c3 === "'''") {
+      const end = source.indexOf(c3, i + 3);
+      i = end === -1 ? n : end + 3;
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      let j = i + 1;
+      while (j < n && source[j] !== c) { if (source[j] === '\\') j++; j++; }
+      i = j + 1;
+      continue;
+    }
+    if (c === '#') {
+      const end = source.indexOf('\n', i);
+      i = end === -1 ? n : end;
+      continue;
+    }
+    out += c;
+    i++;
+  }
+  return out;
+}
+
+/**
+ * Detect renderable scene classes in Python source (client-side mirror of
+ * the server's sceneDetect.js — never executes the source).
+ * @returns {Array<{name, bases, sceneType, known}>}
+ */
+export function detectScenesClient(source) {
+  if (!source || typeof source !== 'string' || source.trim().length === 0) return [];
+  const cleaned = stripCommentsAndStrings(source);
+  const re = /^[ \t]*class\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*:/gm;
+  const scenes = [];
+  let m;
+  while ((m = re.exec(cleaned)) !== null) {
+    const name = m[1];
+    const bases = m[2].split(',').map(b => b.trim())
+      .filter(b => b.length > 0 && /^[A-Za-z_][A-Za-z0-9_.]*$/.test(b));
+    for (const base of bases) {
+      const short = base.split('.').pop();
+      if (KNOWN_SCENE_BASES.includes(short) || /^[A-Za-z_][A-Za-z0-9_]*Scene$/.test(short)) {
+        scenes.push({
+          name,
+          bases,
+          sceneType: short === 'Scene' ? 'scene_2d'
+            : short === 'MovingCameraScene' ? 'moving_camera'
+            : short === 'ThreeDScene' ? 'three_d' : null,
+          known: KNOWN_SCENE_BASES.includes(short)
+        });
+        break;
+      }
+    }
+  }
+  return scenes;
+}
+
 // ── Object code (single object definition) ──────────────────────────────────
 
 function objCode(obj, sw, sh) {
@@ -217,6 +343,13 @@ function objCode(obj, sw, sh) {
 export function generateManimScript(project) {
   const L = [], sw = project.stage.width, sh = project.stage.height;
 
+  // ── Scene type resolution (Issue #1 — parity with the server compiler) ──
+  const sceneMeta = getSceneTypeMeta(project.sceneType || 'scene_2d');
+  const baseClass = sceneMeta.key === 'custom'
+    ? (project.scene?.baseClass || 'Scene')
+    : (sceneMeta.baseClass || 'Scene');
+  const className = safeClassName(project.scene?.className, 'MainScene');
+
   // Collect unique Google Fonts used by text objects
   const usedFonts = new Set();
   for (const obj of (project.objects || [])) {
@@ -232,7 +365,8 @@ export function generateManimScript(project) {
   // Header
   L.push('"""');
   L.push(`Manim Studio – ${project.name}`);
-  L.push('Run:  manim -qh scene.py MainScene');
+  L.push(`Scene type: ${sceneMeta.label}`);
+  L.push(`Run:  manim -qh scene.py ${className}`);
   L.push('"""');
   L.push('');
   L.push('from manim import *');
@@ -242,10 +376,15 @@ export function generateManimScript(project) {
   }
   L.push('');
   L.push('');
-  L.push('class MainScene(Scene):');
+  L.push(`class ${className}(${baseClass}):`);
   L.push('    def construct(self):');
   const bgColor = hex(project.stage.backgroundColor) || '"#000000"';
   L.push(`        self.camera.background_color = ${bgColor}`);
+
+  // Camera prologue per scene type (mirrors registry/scenes.js emitPrologue)
+  for (const line of cameraPrologue(project, sceneMeta)) {
+    L.push(`        ${line}`);
+  }
   L.push('');
 
   if (project.objects.length === 0) {

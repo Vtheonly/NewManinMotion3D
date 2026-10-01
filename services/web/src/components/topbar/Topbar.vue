@@ -221,6 +221,24 @@
             </button>
           </div>
 
+          <!-- Scene type (Issue #1): 2D / moving camera / 3D -->
+          <template v-if="newProjectMode === 'visual'">
+            <label class="np-label" style="margin-top:12px;">Scene Type</label>
+            <div class="np-scene-row">
+              <button
+                v-for="st in sceneTypeChoices"
+                :key="st.key"
+                class="np-scene-btn"
+                :class="{ active: newProjectSceneType === st.key }"
+                :title="st.hint"
+                @click="newProjectSceneType = st.key"
+              >
+                {{ st.label }}
+              </button>
+            </div>
+            <p class="np-scene-hint">{{ currentSceneTypeHint }}</p>
+          </template>
+
           <div class="np-actions">
             <button class="np-btn np-btn-cancel" @click="cancelNewProject">Cancel</button>
             <button class="np-btn np-btn-create" @click="confirmNewProject">Create Project</button>
@@ -232,7 +250,7 @@
 </template>
 
 <script>
-import { store, actions } from '../../store/project.js';
+import { store, actions, SCENE_TYPES, getSceneTypeMeta } from '../../store/project.js';
 import { generateManimScript } from '../../export/manim.js';
 
 const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
@@ -250,13 +268,28 @@ export default {
       _resizeObs: null,
       showNewProjectDialog: false,
       newProjectName: 'My Animation',
-      newProjectMode: 'visual'
+      newProjectMode: 'visual',
+      newProjectSceneType: 'scene_2d'
     };
   },
 
   computed: {
     projectName() { return store.project.name; },
     projectId()   { return store.project.id; },
+    sceneTypeChoices() {
+      return SCENE_TYPES.map(t => ({
+        key: t.key,
+        label: t.label,
+        hint: t.baseClass ? `Renders as class ...( ${t.baseClass})` : 'User-defined Manim scene base class'
+      }));
+    },
+    currentSceneTypeHint() {
+      const meta = getSceneTypeMeta(this.newProjectSceneType);
+      if (meta.key === 'scene_2d') return 'Standard fixed-camera 2D scene (Scene).';
+      if (meta.key === 'moving_camera') return '2D scene with a panning / zooming camera frame (MovingCameraScene).';
+      if (meta.key === 'three_d') return '3D scene with orbitable camera and depth (ThreeDScene).';
+      return 'Renders against a custom scene class you define yourself.';
+    },
     isDirty()     { return store.isDirty; },
     gridVisible() { return store.project.stage.gridVisible; },
     snapEnabled() { return store.project.stage.snapEnabled; },
@@ -477,11 +510,12 @@ export default {
       if (store.isDirty && !confirm('Discard unsaved changes?')) return;
       this.newProjectName = 'My Animation';
       this.newProjectMode = 'visual';
+      this.newProjectSceneType = 'scene_2d';
       this.showNewProjectDialog = true;
     },
     confirmNewProject() {
       const name = this.newProjectName.trim() || 'My Animation';
-      actions.newProject(name, this.newProjectMode);
+      actions.newProject(name, this.newProjectMode, this.newProjectSceneType);
       this.showNewProjectDialog = false;
       this.$emit('mode-changed');
     },
@@ -859,6 +893,36 @@ export default {
 }
 .np-mode-label { font-size: 13px; font-weight: 600; margin-top: 4px; }
 .np-mode-desc { font-size: 10px; opacity: 0.65; line-height: 1.3; }
+.np-scene-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.np-scene-btn {
+  flex: 1 1 auto;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 2px solid var(--studio-border);
+  background: var(--studio-bg);
+  color: var(--studio-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.np-scene-btn:hover { border-color: var(--studio-accent); color: var(--studio-text); }
+.np-scene-btn.active {
+  border-color: var(--studio-accent);
+  background: var(--studio-accent-subtle);
+  color: var(--studio-accent);
+}
+.np-scene-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--studio-text-muted);
+  line-height: 1.4;
+}
 .np-actions {
   display: flex;
   justify-content: flex-end;

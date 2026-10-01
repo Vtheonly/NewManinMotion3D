@@ -13,6 +13,7 @@ import assetsRouter from './routes/assets.js';
 import rendersRouter from './routes/renders.js';
 import jobsRouter from './routes/jobs.js';
 import fontsRouter from './routes/fonts.js';
+import { describeCapabilities, detectScenes } from './compiler/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -36,6 +37,23 @@ app.use((req, res, next) => {
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Capability discovery (Issue #1): the frontend can query which object
+// types / animations / scene types the compiler registries provide, so new
+// registrations appear in the editor without frontend hardcoding.
+app.get('/api/capabilities', (req, res) => {
+  res.json(describeCapabilities());
+});
+
+// Scene detection endpoint (Issue #1): detect renderable scene classes in
+// arbitrary Manim Python source — used by the code editor before rendering.
+app.post('/api/detect-scenes', (req, res) => {
+  const { codeSource } = req.body || {};
+  if (!codeSource || typeof codeSource !== 'string' || codeSource.trim().length === 0) {
+    return res.status(400).json({ error: 'codeSource is required and must be non-empty' });
+  }
+  res.json(detectScenes(codeSource));
 });
 
 // API routes

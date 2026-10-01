@@ -1,10 +1,20 @@
 /**
- * Project JSON Validator — v2
+ * Project JSON Validator — v3
  *
- * Validates the new project schema: stage, objects, tracks/clips, assets.
+ * Validates the project schema: scene, stage, objects, tracks/clips, assets.
+ *
+ * v3 (Issue #1 — architecture decoupling):
+ *   - `sceneType` selects the scene model (scene_2d | moving_camera |
+ *     three_d | custom | <any registered scene-type key>)
+ *   - `scene` carries the scene class name / custom base class
+ *   - `camera` carries per-scene-type camera configuration
+ *   - object types and animation names are validated against the compiler
+ *     registries (data-driven, not hardcoded lists)
  */
 
 import { z } from 'zod';
+import { registries } from './registry/index.js';
+import { animationKeys } from './registry/animations.js';
 
 // ─── Sub-schemas ──────────────────────────────────────────────────────────────
 
@@ -19,6 +29,33 @@ const StageSchema = z.object({
   snapToCenter: z.boolean().default(true)
 }).passthrough().default({});
 
+/**
+ * Scene identity: generated class name + custom base class.
+ * `baseClass` is only meaningful for sceneType === 'custom'.
+ */
+const SceneSchema = z.object({
+  className: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/, 'className must be a valid Python class name').default('MainScene'),
+  baseClass: z.string().regex(/^[A-Za-z_][A-Za-z0-9_.]*$/, 'baseClass must be a valid Python identifier path').optional()
+}).passthrough().default({});
+
+/**
+ * Camera configuration — union of all per-scene-type camera knobs.
+ * Scene types read only the properties they declare in `supportsCamera`.
+ */
+const CameraSchema = z.object({
+  // 2D moving camera
+  zoom: z.number().positive().optional(),
+  centerX: z.number().optional(),
+  centerY: z.number().optional(),
+  frameWidth: z.number().positive().optional(),
+  frameHeight: z.number().positive().optional(),
+  // 3D camera (degrees for angles)
+  phi: z.number().optional(),
+  theta: z.number().optional(),
+  distance: z.number().positive().optional(),
+  gamma: z.number().optional()
+}).passthrough().default({});
+
 const AssetSchema = z.object({
   id: z.string().min(1),
   name: z.string().default('Asset'),
@@ -30,7 +67,7 @@ const AssetSchema = z.object({
 
 const ObjectSchema = z.object({
   id: z.string().min(1),
-  type: z.string().min(1),  // rectangle, square, circle, ellipse, triangle, star, polygon, line, arrow, heart, dot, dot_grid, text, image, svg_asset
+  type: z.string().min(1),  // validated against the object registry below
   name: z.string().default('Object'),
   x: z.number().default(960),
   y: z.number().default(540),
@@ -53,7 +90,7 @@ const ObjectSchema = z.object({
 
 const ClipSchema = z.object({
   id: z.string().min(1),
-  type: z.enum(['transform', 'move', 'scale', 'fade', 'rotate']).default('transform'),
+  type: z.string().default('transform'),  // validated against the animation registry below
   startTime: z.number().min(0).default(0),
   duration: z.number().positive().default(1.5),
   easing: z.string().default('ease_in_out'),
@@ -78,6 +115,9 @@ const ProjectSchema = z.object({
   name: z.string().default('My Animation'),
   editorMode: z.enum(['visual', 'code']).default('visual'),
   codeSource: z.string().default(''),
+  sceneType: z.string().default('scene_2d'),   // validated against the scene registry below
+  scene: SceneSchema,
+  camera: CameraSchema,
   stage: StageSchema,
   assets: z.array(AssetSchema).default([]),
   objects: z.array(ObjectSchema).default([]),
@@ -88,7 +128,7 @@ const ProjectSchema = z.object({
 // ─── Validate ─────────────────────────────────────────────────────────────────
 
 /**
- * Validate a project against the v2 schema.
+ * Validate a project against the v3 schema.
  * @param {Object} project
  * @returns {{ valid: boolean, errors?: string[], data?: Object }}
  */
@@ -106,7 +146,40 @@ export function validateProject(project) {
     const data = result.data;
     const errors = [];
 
-    // Check clip object references
+    // ── Scene type must be a registered scene type (registry-driven) ──
+    if (!registries.scenes.has(data.sceneType)) {
+      errors.push(
+        `sceneType: "${data.sceneType}" is not a registered scene type (available: ${registries.scenes.keys().join(', ')})`
+      );
+    } else if (data.sceneType === 'custom' && !data.scene?.baseClass) {
+      errors.push('scene.baseClass: required when sceneType is "custom"');
+    }
+
+    // ── Object types: registry lookup, unknown types fail validation ──
+    // (the codegen still emits a neutral placeholder as defence in depth,
+    // but typos must not silently render placeholder circles)
+    for (const obj of data.objects) {
+      if (!registries.objects.has(obj.type)) {
+        errors.push(
+          `Object ${obj.id}: unknown type "${obj.type}" (registered: ${registries.objects.keys().join(', ')})`
+        );
+      }
+    }
+
+    // ── Animation names: registry-driven validation ──
+    const enterKeys = animationKeys('enter');
+    const exitKeys = animationKeys('exit');
+    const clipKeys = animationKeys('clip');
+    for (const obj of data.objects) {
+      if (obj.enterAnim && !enterKeys.includes(obj.enterAnim)) {
+        errors.push(`Object ${obj.id}: unknown enterAnim "${obj.enterAnim}" (registered: ${enterKeys.join(', ')})`);
+      }
+      if (obj.exitAnim && !exitKeys.includes(obj.exitAnim)) {
+        errors.push(`Object ${obj.id}: unknown exitAnim "${obj.exitAnim}" (registered: ${exitKeys.join(', ')})`);
+      }
+    }
+
+    // ── Clip object references + clip types ──
     const objectIds = new Set((data.objects || []).map(o => o.id));
     for (const track of data.tracks) {
       for (const clip of track.clips) {
@@ -115,6 +188,9 @@ export function validateProject(project) {
         }
         if (clip.type === 'transform' && clip.targetId && !objectIds.has(clip.targetId)) {
           errors.push(`Clip ${clip.id}: references non-existent target object "${clip.targetId}"`);
+        }
+        if (!clipKeys.includes(clip.type)) {
+          errors.push(`Clip ${clip.id}: unknown clip type "${clip.type}" (registered: ${clipKeys.join(', ')})`);
         }
       }
     }
