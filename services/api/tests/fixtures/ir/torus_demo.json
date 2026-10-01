@@ -1,0 +1,94 @@
+{
+  "camera": {
+    "distance": 11,
+    "phi": 70,
+    "theta": -40
+  },
+  "expressions": [],
+  "id": "torus_demo",
+  "objects": [
+    {
+      "id": "torus",
+      "properties": {
+        "dt": 0.045,
+        "majorRadius": 2.4,
+        "minorRadius": 0.85,
+        "steps": 80
+      },
+      "space": "world3d",
+      "type": "kinematics.torus"
+    },
+    {
+      "id": "chain",
+      "properties": {
+        "linkLength": 0.9,
+        "thetas": [
+          0.9,
+          -0.55,
+          0.35,
+          0.15
+        ]
+      },
+      "space": "world3d",
+      "transform": {
+        "position": [
+          2.2,
+          0,
+          0
+        ],
+        "rotation": 0,
+        "scale": 1
+      },
+      "type": "kinematics.chain"
+    },
+    {
+      "id": "obstacle",
+      "properties": {
+        "center": [
+          1.85,
+          0.75,
+          0.45
+        ],
+        "radius": 0.72
+      },
+      "space": "world3d",
+      "type": "kinematics.obstacle"
+    }
+  ],
+  "relationships": [],
+  "sceneType": "three_d",
+  "schema": "sci-ir/1",
+  "timeline": [
+    {
+      "id": "flow",
+      "steps": [
+        {
+          "animation": "create",
+          "duration": 2,
+          "op": "play",
+          "target": "torus"
+        },
+        {
+          "duration": 3.2,
+          "op": "camera",
+          "properties": {
+            "orbit": 0.18
+          }
+        }
+      ],
+      "title": "Flow"
+    }
+  ],
+  "title": "Torus Demo",
+  "values": [
+    {
+      "format": "ΔG = {value:.2f}",
+      "id": "hero",
+      "source": {
+        "key": "energy",
+        "kind": "data",
+        "ref": "synth/protein.json"
+      }
+    }
+  ]
+}

@@ -7,6 +7,8 @@
   Build mathematical animations by dragging shapes, writing LaTeX, creating morphs, and rendering cinematic videos -- all from your browser.  
   Or switch to **Code-Only mode** and write raw Manim Python with full library access.
 
+**v1.3.0:** A canonical **scientific scene runtime** (`sci-ir/1`) now powers Code-Only mode: author scenes through a typed Python API (proteins, MLPs, torus flows, PoE chains, attention, formulas with live values), export/import them losslessly, and render them through the same pipeline as the editor. See [docs/development/syntax/OVERVIEW.md](docs/development/syntax/OVERVIEW.md).
+
 **v1.2.0:** Scene architecture is now plugin-based — visual projects can be **2D**, **2D moving-camera**, **3D** (`ThreeDScene`), or **custom scene classes**, and Code-Only mode auto-detects any scene class you write.
 </div>
 
@@ -359,6 +361,17 @@ For detailed technical docs of the entire codebase, see **[XTRA-BIG-README.md](X
 ---
 
 ## Changelog
+
+### v1.3.0
+
+- **Scientific scene runtime (issue #32):** canonical scene IR (`sci-ir/1`) shared by Python runtime, API and renderer — `scientific/` package (IR, type registry, authoring API, safe derived-value evaluator, deterministic Python exporter, Manim adapter, CLI runner)
+- **Authoring API:** `ScientificScene` builder with typed artifacts (`biology.protein`, `nn.network`, `kinematics.torus`/`chain`/`jacobian`, `attention.*`, `math.*`, `ui.*`, `hud.fixed`), structured formulas (terms/highlights/bindings), live values and declarative timeline stages
+- **Runnable exports:** IR → standalone Python, byte-deterministic, round-trip exact (custom code preserved verbatim); run via `python -m scientific.run`, `python scene.py`, or plain `manim`
+- **Reference scenes:** SynthesizabilityWall, TIF attention (3D + fixed HUD), Torus/PoE/Jacobian with clash + DLS resolution — all composed from reusable primitives, all render end-to-end
+- **API:** `GET /api/ir/schema` (generic-inspector metadata), `POST /api/ir/validate`, `POST /api/ir/export` — with JS mirrors byte-identical to Python (parity-tested)
+- **Renderer image** ships the runtime (`PYTHONPATH`, data fixtures) so Code-Only renders import `scientific`
+- **Tests:** 145 Python tests (IR/registry/runtime/numerics/round-trip/execution/architecture/parity) + 8 API tests; all suites green
+- **Docs:** `docs/development/` — scene-ir / authoring-model / runtime-boundary, syntax ×7, examples ×2, problem registry (P-001…P-010)
 
 ### v1.2.0
 

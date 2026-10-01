@@ -1,0 +1,128 @@
+{
+  "bindings": {
+    "theta": {
+      "kind": "literal",
+      "value": 0.6
+    }
+  },
+  "expressions": [
+    {
+      "bindings": {
+        "theta": {
+          "kind": "literal",
+          "value": 0.6
+        }
+      },
+      "highlights": [
+        "J(theta).T"
+      ],
+      "id": "eq",
+      "source": "tau = J(theta).T @ F",
+      "terms": {
+        "Jt": "J(theta).T"
+      }
+    }
+  ],
+  "id": "sample_2d",
+  "objects": [
+    {
+      "id": "panel",
+      "properties": {
+        "height": 3,
+        "title": "Panel",
+        "width": 6
+      },
+      "transform": {
+        "position": [
+          -2.5,
+          1,
+          0
+        ],
+        "rotation": 0,
+        "scale": 1
+      },
+      "type": "ui.panel"
+    },
+    {
+      "id": "eq",
+      "properties": {
+        "fontSize": 40,
+        "source": "tau = J(theta).T @ F"
+      },
+      "transform": {
+        "position": [
+          2,
+          -0.5,
+          0
+        ],
+        "rotation": 0,
+        "scale": 1
+      },
+      "type": "math.formula"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "link",
+      "kind": "arrow",
+      "live": true,
+      "sources": [
+        "panel",
+        "eq"
+      ]
+    }
+  ],
+  "sceneType": "scene_2d",
+  "schema": "sci-ir/1",
+  "timeline": [
+    {
+      "id": "s1",
+      "steps": [
+        {
+          "op": "show",
+          "target": "panel"
+        },
+        {
+          "animation": "write",
+          "duration": 1.5,
+          "op": "play",
+          "target": "eq"
+        },
+        {
+          "duration": 1,
+          "op": "highlight",
+          "properties": {
+            "color": "warn"
+          },
+          "target": "eq"
+        },
+        {
+          "code": "print('boundary')",
+          "op": "custom"
+        }
+      ],
+      "title": "Intro"
+    }
+  ],
+  "title": "Sample 2D",
+  "values": [
+    {
+      "format": "E = {value:.2f}",
+      "id": "energy",
+      "source": {
+        "expr": "a * b + 1",
+        "inputs": {
+          "a": {
+            "kind": "literal",
+            "value": 2
+          },
+          "b": {
+            "kind": "literal",
+            "value": 3
+          }
+        },
+        "kind": "derived"
+      }
+    }
+  ]
+}

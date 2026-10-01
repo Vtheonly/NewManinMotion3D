@@ -1,0 +1,11 @@
+node_modules
+**/node_modules
+.git
+docs
+website
+services/web/dist
+services/web/media
+media
+*.md
+!README.md
+report.md
