@@ -18,6 +18,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .runner_helpers import _document_of, _repo_root, _validate
+
 QUALITY_FLAGS = {
     "low": "-ql", "medium": "-qm", "high": "-qh",
     "production": "-qp", "4k": "-qk",
@@ -40,7 +42,8 @@ def _scene_classes(module):
     for name in dir(module):
         obj = getattr(module, name)
         if (isinstance(obj, type) and issubclass(obj, ScientificRenderMixin)
-                and obj is not ScientificRenderMixin and getattr(obj, "__module__", "") == module.__name__):
+                and obj is not ScientificRenderMixin
+                and getattr(obj, "__module__", "") == module.__name__):
             found.append((name, obj))
     return found
 
@@ -56,12 +59,11 @@ def main(argv=None) -> int:
                         help="list scene classes")
     parser.add_argument("--quality", choices=sorted(QUALITY_FLAGS),
                         default="low")
-    parser.add_argument("--media_dir", default=None,
-                        help="override manim media output directory")
+    parser.add_argument("--media_dir", help="override manim media dir")
     parser.add_argument("--dry_run", action="store_true",
                         help="build document only, no render")
     parser.add_argument("--diagnostics", action="store_true",
-                        help="write diagnostics.json next to the render")
+                        help="write diagnostics.json")
     parser.add_argument("--verify", action="store_true",
                         help="render twice, compare frame hashes")
     args = parser.parse_args(argv)
@@ -79,7 +81,8 @@ def main(argv=None) -> int:
 
     scenes = _scene_classes(module)
     if not scenes:
-        print(f"error: no scientific scene classes in {path}", file=sys.stderr)
+        print(f"error: no scientific scene classes in {path}",
+              file=sys.stderr)
         return 3
     match = ([cls for name, cls in scenes if name == args.scene]
             if args.scene else [scenes[0][1]])
@@ -95,8 +98,8 @@ def main(argv=None) -> int:
         document = _document_of(scene_cls)
     if args.dry_run:
         print(f"document {document.id!r}: {len(document.objects)} objects, "
-              f"{len(document.timeline)} stages, valid="
-              f"{not _validate(document)}")
+              f"{len(document.timeline)} stages, "
+              f"valid={not _validate(document)}")
         return 0
 
     if args.verify:
@@ -107,7 +110,7 @@ def main(argv=None) -> int:
         ok = report["reproducible"] and not report["validationErrors"]
         print(f"[verify] deterministic={report['reproducible']} "
               f"hash={report['hash'][:12]}… bytes={report['bytes']} "
-              f"validation={len(report['validationErrors'])} errors")
+              f"validation={len(report['validationErrors'])}")
         return 0 if ok else 5
 
     cmd = [sys.executable, "-m", "manim", QUALITY_FLAGS[args.quality]]
@@ -115,35 +118,14 @@ def main(argv=None) -> int:
         cmd += ["--media_dir", args.media_dir]
     cmd += [str(path), scene_cls.__name__]
     env = dict(os.environ)
+    if args.diagnostics:
+        env["SUPREPTO_DIAGNOSTICS"] = str((Path(args.media_dir)
+            if args.media_dir else path.parent) / "diagnostics.json")
     env["PYTHONPATH"] = os.pathsep.join(
         p for p in (str(_repo_root(path)), env.get("PYTHONPATH")) if p)
     print("[scientific.run] " + " ".join(cmd))
     completed = subprocess.run(cmd, env=env, cwd=str(path.parent))
     return completed.returncode
-
-
-def _repo_root(scene_path: Path) -> Path:
-    """Walk up from a scene file until the scientific package is visible."""
-    for candidate in (scene_path.parent, *scene_path.parents):
-        if (candidate / "scientific" / "__init__.py").is_file():
-            return candidate
-    return scene_path.parent
-
-
-def _document_of(scene_cls):
-    from .ir.document import SceneDocument
-    from .runtime.authoring import ScientificScene
-    scene = scene_cls().get_scene()
-    if isinstance(scene, (SceneDocument, ScientificScene)):
-        return getattr(scene, "document", scene)
-    raise TypeError("get_scene() must return a ScientificScene or document")
-
-
-def _validate(document) -> list:
-    from .ir import validate_document
-    return validate_document(document)
-
-
 
 
 if __name__ == "__main__":

@@ -19,6 +19,7 @@ class ScientificRenderMixin:
             f"{type(self).__name__} must implement get_scene()")
 
     def construct(self):
+        import os
         from ..ir.document import SceneDocument
         from ..runtime.authoring import ScientificScene
         from .render import render_document
@@ -32,7 +33,15 @@ class ScientificRenderMixin:
             raise TypeError(
                 "get_scene() must return a ScientificScene or SceneDocument, "
                 f"got {type(scene).__name__}")
-        render_document(self, document)
+        ctx = render_document(self, document)
+        # Issue #28: opt-in diagnostics dump (runner --diagnostics / worker)
+        target = os.environ.get("SUPREPTO_DIAGNOSTICS")
+        if target and ctx.diagnostics is not None:
+            from ..diagnostics import write_json
+            try:
+                write_json(ctx.diagnostics, target)
+            except OSError as exc:  # pragma: no cover - best effort
+                ctx.warn(f"could not write diagnostics: {exc}")
 
 
 class BaseScientificScene(ScientificRenderMixin, Scene):

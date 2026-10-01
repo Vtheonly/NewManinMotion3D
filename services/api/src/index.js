@@ -14,6 +14,7 @@ import rendersRouter from './routes/renders.js';
 import jobsRouter from './routes/jobs.js';
 import fontsRouter from './routes/fonts.js';
 import irRouter from './routes/ir.js';
+import sciRenderRouter from './routes/sciRender.js';
 import { describeCapabilities, detectScenes } from './compiler/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -59,6 +60,7 @@ app.post('/api/detect-scenes', (req, res) => {
 
 // API routes
 app.use('/api/projects', projectsRouter);
+app.use('/api/projects', sciRenderRouter);
 app.use('/api/assets', assetsRouter);
 app.use('/api/renders', rendersRouter);
 app.use('/api/jobs', jobsRouter);
