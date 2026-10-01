@@ -69,6 +69,7 @@ Screenshots are stored in `docs/screenshots/`. Replace or add PNGs there and upd
 - **Asset integration** -- Upload images/SVGs in the sidebar; click to copy the file path for use in your code
 - **Direct render** -- Code is written as `scene.py` and executed by the Manim worker; full stdout/stderr visible in the render dialog
 - **Error feedback** -- Manim tracebacks and compilation errors are shown in the render log panel
+- **Auto scene detection** -- Any `Scene`, `MovingCameraScene`, `ThreeDScene`, or custom `*Scene` subclass is detected and rendered; see the [Python scene syntax guide](docs/development/guides/PYTHON-SCENE-SYNTAX.md) for the exact rules, examples, and common errors
 
 ### Workflow
 - **Undo / Redo** -- Full history stack (Ctrl+Z / Ctrl+Shift+Z) with 50-state memory
@@ -363,11 +364,11 @@ For detailed technical docs of the entire codebase, see **[XTRA-BIG-README.md](X
 
 - **Architecture (issue #1):** Registry-based compiler — object types, animations, and scene types are data-driven plugins; adding capabilities no longer requires core compiler changes
 - **Scenes:** Visual projects support 2D / moving-camera (`MovingCameraScene` with zoom, center, frame size) / 3D (`ThreeDScene` with phi, theta, distance, gamma) / custom base classes; scene class name configurable
-- **Scene detection:** Renderer and API detect renderable scene classes in Python source (never executes code); Code-Only mode renders any `Scene`/`ThreeDScene`/custom class — hardcoded `MainScene` assumption removed
+- **Scene detection:** Renderer and API detect renderable scene classes in Python source (never executes code); Code-Only mode renders any `Scene`/`ThreeDScene`/custom class — hardcoded `MainScene` assumption removed; syntax rules documented in the [Python scene syntax guide](docs/development/guides/PYTHON-SCENE-SYNTAX.md)
 - **API:** `GET /api/capabilities` (registry discovery), `POST /api/detect-scenes`; render endpoints return/use detected scene names
 - **Frontend:** Scene type picker in New Project dialog; Scene + Camera editors in Properties panel; project schema v3 with automatic migration of older projects
 - **Tests:** 65 new tests (API compiler suite, renderer scene detection, frontend scene suite)
-- **Docs:** `docs/development/` — architecture, roadmap, task registry, iteration reports, agent workflow
+- **Docs:** `docs/development/` — architecture, roadmap, task registry, iteration reports, agent workflow, [Python scene syntax guide](docs/development/guides/PYTHON-SCENE-SYNTAX.md)
 
 ### v1.1.0
 
