@@ -473,6 +473,10 @@
           <Num label="Width" :value="stg.width" :min="100" @input="uStage('width', $event)" />
           <Num label="Height" :value="stg.height" :min="100" @input="uStage('height', $event)" />
         </div>
+        <div class="mt-1.5">
+          <Num label="Timeline length (s)" :value="sceneDuration" :min="1" :step="0.5" @input="uDuration($event)" />
+          <p class="text-[8px] text-studio-text-muted/40 mt-1 leading-snug">Minimum scene duration — objects outlive it until their own windows end. The exported video spans the same length.</p>
+        </div>
       </Section>
 
       <!-- Groups list -->
@@ -501,6 +505,7 @@
 </template>
 
 <script>
+import Vue from 'vue';
 import { store, actions, getters, ENTER_ANIMS, EXIT_ANIMS, SCENE_TYPES, getSceneTypeMeta } from '../../store/project.js';
 import { EASING_LIST } from '../../engine/easing.js';
 import { ANCHOR_GRID, ANCHOR_LABELS } from '../../constants/anchors.js';
@@ -542,6 +547,7 @@ export default {
     camera() { return store.project.camera || {}; },
     sceneType() { return store.project.sceneType || 'scene_2d'; },
     sceneTypes() { return SCENE_TYPES; },
+    sceneDuration() { return store.project.sceneDuration ?? 10; },
     sceneTypeMeta() { return getSceneTypeMeta(this.sceneType); },
     cameraFields() {
       const labels = {
@@ -637,6 +643,13 @@ export default {
     uc(k, v) { if (this.clip) actions.updateClip(this.clip.id, { [k]: v }); },
     up(k, v) { if (this.clip) actions.updateClip(this.clip.id, { params: { ...(this.clip.params||{}), [k]: v } }); },
     uStage(k, v) { actions.updateStage({ [k]: v }); },
+    uDuration(v) {
+      const n = Number(v);
+      if (Number.isFinite(n) && n > 0) {
+        Vue.set(store.project, 'sceneDuration', Math.max(1, n));
+        store.isDirty = true;
+      }
+    },
     setSceneType(t) { actions.updateSceneConfig({ sceneType: t }); },
     uScene(k, v) { actions.updateSceneConfig({ [k]: v }); },
     uCam(k, v) { actions.updateCamera(k, v); },

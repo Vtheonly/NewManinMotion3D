@@ -5,16 +5,25 @@
  * function. The compiler never hardcodes animation names — it looks them up
  * here by (phase, key).
  *
+ * E2E audit (timeline fidelity): every entry returns an ANIMATION EXPRESSION
+ * (e.g. `FadeIn(o, run_time=0.5)`), NOT a `self.play(...)` statement. The
+ * scene assembler schedules expressions into waves: overlapping animations
+ * share one self.play, later starts wrapped in `Succession(Wait(delay),
+ * anim)`, so the exported timeline matches the editor EXACTLY — no drift
+ * when animations overlap. Constructor-style animations carry their own
+ * run_time / rate_func, which is what makes delayed starts possible.
+ *
  * Extension point — adding a new animation:
  *   registerAnimation('enter', 'my_enter', {
  *     label: 'My Enter',
- *     codegen({ varName, duration }) { return `self.play(...)`; }
+ *     codegen({ varName, duration }) { return `FadeIn(${varName}, ...)`; }
  *   });
  *
  * codegen contract:
- *   - receives { varName, duration, clip, project, helpers }
- *   - returns a single Python statement string (one self.play/self.add call)
- *   - `duration` is already normalized; use helpers.rtOpt(duration)
+ *   - receives { varName, duration, clip, project, family }
+ *   - returns an animation expression string, or the marker 'add:<varName>'
+ *     for instant appearances, or null to skip
+ *   - use helpers.rtOpt(duration) / rfOpt(easing) for timing kwargs
  */
 
 import { registries } from './index.js';
@@ -22,6 +31,9 @@ import { vn, rfOpt, rtOpt, stageToManim, editorRotationToManim } from './shared.
 
 /** Helpers available to every animation codegen function. */
 export const animationHelpers = { vn, rfOpt, rtOpt, stageToManim };
+
+/** Instant-appearance marker parsed by the scene assembler. */
+export const ADD_MARKER = 'add:';
 
 /**
  * Register an animation.
@@ -54,7 +66,7 @@ export function animationKeys(phase) {
 }
 
 /**
- * Generate the Python statement for an animation, with safe fallbacks:
+ * Generate the animation expression for a step, with safe fallbacks:
  *  - unknown enter animation -> fade_in behaviour
  *  - unknown exit animation  -> no exit (skip)
  *  - unknown clip type       -> skipped by the caller
@@ -69,48 +81,48 @@ export function animationCode(phase, key, ctx) {
 
 registerAnimation('enter', 'none', {
   label: 'None',
-  codegen: ({ varName }) => `self.add(${varName})`,
+  codegen: ({ varName }) => `${ADD_MARKER}${varName}`,
   zeroDuration: true
 });
 registerAnimation('enter', 'fade_in', {
   label: 'Fade In',
-  codegen: ({ varName, duration }) => `self.play(FadeIn(${varName})${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `FadeIn(${varName}${rtOpt(duration)})`
 });
 registerAnimation('enter', 'grow_in', {
   label: 'Grow In',
-  codegen: ({ varName, duration }) => `self.play(GrowFromCenter(${varName})${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `GrowFromCenter(${varName}${rtOpt(duration)})`
 });
 registerAnimation('enter', 'fly_in_left', {
   label: 'Fly In (Left)',
-  codegen: ({ varName, duration }) => `self.play(FadeIn(${varName}, shift=RIGHT)${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `FadeIn(${varName}, shift=RIGHT${rtOpt(duration)})`
 });
 registerAnimation('enter', 'fly_in_right', {
   label: 'Fly In (Right)',
-  codegen: ({ varName, duration }) => `self.play(FadeIn(${varName}, shift=LEFT)${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `FadeIn(${varName}, shift=LEFT${rtOpt(duration)})`
 });
 registerAnimation('enter', 'fly_in_top', {
   label: 'Fly In (Top)',
-  codegen: ({ varName, duration }) => `self.play(FadeIn(${varName}, shift=DOWN)${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `FadeIn(${varName}, shift=DOWN${rtOpt(duration)})`
 });
 registerAnimation('enter', 'fly_in_bottom', {
   label: 'Fly In (Bottom)',
-  codegen: ({ varName, duration }) => `self.play(FadeIn(${varName}, shift=UP)${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `FadeIn(${varName}, shift=UP${rtOpt(duration)})`
 });
 registerAnimation('enter', 'draw', {
   label: 'Draw',
-  codegen: ({ varName, duration }) => `self.play(Create(${varName})${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `Create(${varName}${rtOpt(duration)})`
 });
 registerAnimation('enter', 'write', {
   label: 'Write',
-  codegen: ({ varName, duration }) => `self.play(Write(${varName})${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `Write(${varName}${rtOpt(duration)})`
 });
 registerAnimation('enter', 'spin_in', {
   label: 'Spin In',
-  codegen: ({ varName, duration }) => `self.play(SpinInFromNothing(${varName})${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `SpinInFromNothing(${varName}${rtOpt(duration)})`
 });
 registerAnimation('enter', 'bounce_in', {
   label: 'Bounce In',
-  codegen: ({ varName, duration }) => `self.play(GrowFromCenter(${varName}, rate_func=rate_functions.ease_out_bounce)${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `GrowFromCenter(${varName}, rate_func=rate_functions.ease_out_bounce${rtOpt(duration)})`
 });
 
 // ─── Exit animations (9) ──────────────────────────────────────────────────────
@@ -121,38 +133,40 @@ registerAnimation('exit', 'none', {
 });
 registerAnimation('exit', 'fade_out', {
   label: 'Fade Out',
-  codegen: ({ varName, duration }) => `self.play(FadeOut(${varName})${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `FadeOut(${varName}${rtOpt(duration)})`
 });
 registerAnimation('exit', 'shrink_out', {
   label: 'Shrink Out',
-  codegen: ({ varName, duration }) => `self.play(ShrinkToCenter(${varName})${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `ShrinkToCenter(${varName}${rtOpt(duration)})`
 });
 registerAnimation('exit', 'fly_out_left', {
   label: 'Fly Out (Left)',
-  codegen: ({ varName, duration }) => `self.play(FadeOut(${varName}, shift=LEFT)${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `FadeOut(${varName}, shift=LEFT${rtOpt(duration)})`
 });
 registerAnimation('exit', 'fly_out_right', {
   label: 'Fly Out (Right)',
-  codegen: ({ varName, duration }) => `self.play(FadeOut(${varName}, shift=RIGHT)${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `FadeOut(${varName}, shift=RIGHT${rtOpt(duration)})`
 });
 registerAnimation('exit', 'fly_out_top', {
   label: 'Fly Out (Top)',
-  codegen: ({ varName, duration }) => `self.play(FadeOut(${varName}, shift=UP)${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `FadeOut(${varName}, shift=UP${rtOpt(duration)})`
 });
 registerAnimation('exit', 'fly_out_bottom', {
   label: 'Fly Out (Bottom)',
-  codegen: ({ varName, duration }) => `self.play(FadeOut(${varName}, shift=DOWN)${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `FadeOut(${varName}, shift=DOWN${rtOpt(duration)})`
 });
 registerAnimation('exit', 'uncreate', {
   label: 'Uncreate',
-  codegen: ({ varName, duration }) => `self.play(Uncreate(${varName})${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `Uncreate(${varName}${rtOpt(duration)})`
 });
 registerAnimation('exit', 'spin_out', {
   label: 'Spin Out',
-  codegen: ({ varName, duration }) => `self.play(FadeOut(${varName}, shift=OUT, scale=0.5)${rtOpt(duration)})`
+  codegen: ({ varName, duration }) => `FadeOut(${varName}, shift=OUT, scale=0.5${rtOpt(duration)})`
 });
 
 // ─── Clip (timeline) animations (5) ───────────────────────────────────────────
+// All ctor-style so the wave scheduler can delay-start them inside one play.
+// Clip pivots use the object's BASE center (the preview's propagation pivot).
 
 registerAnimation('clip', 'transform', {
   label: 'Transform / Morph',
@@ -160,9 +174,8 @@ registerAnimation('clip', 'transform', {
     const tn = vn(clip.targetId);
     const srcObj = (project.objects || []).find(o => o.id === clip.sourceId);
     const tgtObj = (project.objects || []).find(o => o.id === clip.targetId);
-    const hasRaster = ['image', 'svg_asset'].includes(srcObj?.type) || ['image', 'svg_asset'].includes(tgtObj?.type);
-    const anim = hasRaster ? 'FadeTransform' : 'ReplacementTransform';
-    return `self.play(${anim}(${varName}, ${tn})${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
+    const anim = transformAnimFor(srcObj, tgtObj);
+    return `${anim}(${varName}, ${tn}${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
   }
 });
 
@@ -172,15 +185,16 @@ registerAnimation('clip', 'move', {
     const sw = project.stage.width, sh = project.stage.height;
     const tx = clip.params?.targetX ?? 0, ty = clip.params?.targetY ?? 0;
     if (family) {
-      // Family move: translate the whole subtree by the SAME delta the
-      // preview applies (target - parent base position) so the parent lands
-      // exactly on target and children ride along rigidly.
-      const dx = stageToManim(tx, ty, sw, sh).x - family.pivot[0];
-      const dy = stageToManim(tx, ty, sw, sh).y - family.pivot[1];
-      return `self.play(${varName}.animate.shift([${dx.toFixed(3)}, ${dy.toFixed(3)}, 0])${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
+      // Family move: shift the whole subtree by the SAME delta the preview
+      // applies (target - parent base position) — children ride rigidly.
+      const mp = stageToManim(tx, ty, sw, sh);
+      const dx = mp.x - family.pivot[0];
+      const dy = mp.y - family.pivot[1];
+      const dz = (family.pivot[2] || 0) * 0; // moves are in the stage plane
+      return `ApplyMethod(${varName}.shift, [${dx.toFixed(3)}, ${dy.toFixed(3)}, ${dz.toFixed(3)}]${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
     }
     const mp = stageToManim(tx, ty, sw, sh);
-    return `self.play(${varName}.animate.move_to([${mp.x.toFixed(2)}, ${mp.y.toFixed(2)}, 0])${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
+    return `ApplyMethod(${varName}.move_to, [${mp.x.toFixed(3)}, ${mp.y.toFixed(3)}, 0]${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
   }
 });
 
@@ -189,16 +203,18 @@ registerAnimation('clip', 'scale', {
   codegen: ({ varName, clip, family }) => {
     const sx = Number(clip.params?.targetScaleX ?? 1) || 1;
     const sy = Number(clip.params?.targetScaleY ?? sx) || sx;
-    // Uniform scale is the common case; non-uniform X/Y (the editor supports
-    // independent targetScaleX/Y) maps to stretch() about the center, which
-    // is what the preview applies (E2E preview/export parity).
-    // A family scales about the PARENT's center — the pivot the preview
-    // propagates children around.
-    const pivot = family ? `, about_point=[${family.pivot[0].toFixed(3)}, ${family.pivot[1].toFixed(3)}, ${family.pivot[2].toFixed(3)}]` : '';
-    const body = Math.abs(sx - sy) < 1e-6
-      ? `${varName}.animate.scale(${sx.toFixed(3)}${pivot})`
-      : `${varName}.animate.stretch(${sx.toFixed(3)}, 0${pivot}).stretch(${sy.toFixed(3)}, 1${pivot})`;
-    return `self.play(${body}${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
+    // Transform to a pre-scaled copy: exact pivot control (family: parent
+    // center; single object: its own center), non-uniform X/Y supported.
+    const p = family ? family.pivot : null;
+    const pivot = p
+      ? `, about_point=[${p[0].toFixed(3)}, ${p[1].toFixed(3)}, ${p[2].toFixed(3)}]`
+      : '';
+    const uniform = Math.abs(sx - sy) < 1e-6;
+    const chain = uniform
+      ? `.scale(${sx.toFixed(3)}${pivot})`
+      : `.stretch(${sx.toFixed(3)}, 0${pivot}).stretch(${sy.toFixed(3)}, 1${pivot})`;
+    const tgt = `tgt_${vn(clip.id)}`;
+    return `__TARGET__ ${tgt} = ${varName}.copy()${chain}\nTransform(${varName}, ${tgt}${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
   }
 });
 
@@ -207,8 +223,8 @@ registerAnimation('clip', 'fade', {
   codegen: ({ varName, clip }) => {
     const op = clip.params?.targetOpacity ?? 0;
     return op < 0.01
-      ? `self.play(FadeOut(${varName})${rtOpt(clip.duration)}${rfOpt(clip.easing)})`
-      : `self.play(${varName}.animate.set_opacity(${op.toFixed(2)})${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
+      ? `FadeOut(${varName}${rtOpt(clip.duration)}${rfOpt(clip.easing)})`
+      : `ApplyMethod(${varName}.set_opacity, ${op.toFixed(2)}${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
   }
 });
 
@@ -220,8 +236,21 @@ registerAnimation('clip', 'rotate', {
     // counter-clockwise — negate the delta or the video mirrors the preview.
     const delta = ((clip.params?.targetRotation ?? 360) - (srcObj?.rotation || 0));
     const ang = editorRotationToManim(delta);
-    // A family rotates about the PARENT's center (the preview's pivot).
-    const pivot = family ? `, about_point=[${family.pivot[0].toFixed(3)}, ${family.pivot[1].toFixed(3)}, ${family.pivot[2].toFixed(3)}]` : '';
-    return `self.play(Rotate(${varName}, angle=${ang.toFixed(2)}${pivot})${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
+    // Pivot: the family's parent center, or the object's own base center.
+    const p = family ? family.pivot : null;
+    if (p) {
+      return `Rotate(${varName}, angle=${ang.toFixed(2)}, about_point=[${p[0].toFixed(3)}, ${p[1].toFixed(3)}, ${p[2].toFixed(3)}]${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
+    }
+    const sw = project.stage.width, sh = project.stage.height;
+    const mp = stageToManim(srcObj?.x ?? 0, srcObj?.y ?? 0, sw, sh);
+    const mz = Number.isFinite(Number(srcObj?.z)) && (srcObj.z || 0) !== 0
+      ? (Number(srcObj.z) / sh) * 8 : 0;
+    return `Rotate(${varName}, angle=${ang.toFixed(2)}, about_point=[${mp.x.toFixed(3)}, ${mp.y.toFixed(3)}, ${mz.toFixed(3)}]${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
   }
 });
+
+// Raster-involving transforms degrade to FadeTransform (both codegens agree).
+export function transformAnimFor(srcObj, tgtObj) {
+  const hasRaster = ['image', 'svg_asset'].includes(srcObj?.type) || ['image', 'svg_asset'].includes(tgtObj?.type);
+  return hasRaster ? 'FadeTransform' : 'ReplacementTransform';
+}

@@ -71,6 +71,108 @@ function stageZToManim(z, sh) {
 // ── Main generator ──────────────────────────────────────────────────────────
 
 /**
+ * WAVE SCHEDULER (E2E audit — exact timeline fidelity)
+ * =====================================================
+ * The editor timeline is a set of steps {time, duration}. Animations that
+ * OVERLAP must run in parallel in the video, or every later step drifts
+ * (the classic serializer bug: a 2s move starting at t=1 pushes a t=2 enter
+ * to t=3 and everything after it).
+ *
+ * Steps are grouped into WAVES: a wave starts at its earliest step's time
+ * and extends until its last animation ends. A step whose time falls inside
+ * the running wave joins that wave's single self.play, wrapped as
+ * Succession(Wait(delay), anim) so it starts at its EXACT timeline time.
+ * Constructor-style animations carry their own run_time / rate_func, which
+ * is what makes per-animation timing exact inside one play.
+ *
+ * Instant `self.add` steps merge (zero duration); a delayed add becomes a
+ * 0.01s linear FadeIn at its delay — visually instant, time-exact.
+ */
+
+/** Parse a registry animation expression: handles the scale Transform's
+ *  `__TARGET__ <def>\n<expr>` two-line form and the `add:<var>` marker. */
+function parseAnimExpr(code) {
+  const s = String(code);
+  if (s.startsWith('__TARGET__ ')) {
+    const nl = s.indexOf('\n');
+    return { targetDef: s.slice('__TARGET__ '.length, nl), expr: s.slice(nl + 1) };
+  }
+  return { targetDef: null, expr: s };
+}
+
+/** Emit the animation statements for one scheduled wave. */
+function emitWave(L, indent, wave) {
+  const addTargets = [];
+  const parts = [];
+  let targetDefs = [];
+  for (const step of wave.steps) {
+    if (step.isAdd) {
+      if (step.delay > 0.001) {
+        // Delayed instant appearance: time-exact via Succession(Wait, ...)
+        parts.push(`Succession(Wait(${step.delay.toFixed(2)}), FadeIn(${step.anim}, run_time=0.01, rate_func=linear))`);
+      } else {
+        addTargets.push(step.anim);
+      }
+      continue;
+    }
+    const { targetDef, expr } = parseAnimExpr(step.code);
+    if (targetDef) targetDefs.push(targetDef);
+    parts.push(step.delay > 0.001
+      ? `Succession(Wait(${step.delay.toFixed(2)}), ${expr})`
+      : expr);
+  }
+  if (addTargets.length > 0) {
+    L.push(`${indent}self.add(${addTargets.join(', ')})`);
+  }
+  for (const def of targetDefs) L.push(`${indent}${def}`);
+  if (parts.length > 0) {
+    L.push(`${indent}self.play(${parts.join(', ')})`);
+  }
+}
+
+/**
+ * Schedule steps into non-overlapping waves and emit them.
+ * @param {Array} L output lines
+ * @param {string} indent
+ * @param {Array} steps sorted by time ({time, order, dur, code, isAdd})
+ */
+function emitTimeline(L, indent, steps) {
+  const EPS = 0.05;
+  const groups = [];
+  for (const s of steps) {
+    const last = groups[groups.length - 1];
+    if (!last || Math.abs(s.time - last.time) > EPS) groups.push({ time: s.time, steps: [s] });
+    else last.steps.push(s);
+  }
+
+  const waves = [];
+  for (const g of groups) {
+    const gDur = Math.max(...g.steps.map(s => s.dur || 0.5));
+    const lastWave = waves[waves.length - 1];
+    if (!lastWave || g.time >= lastWave.start + lastWave.extent - EPS) {
+      // Starts after everything running has finished -> its own wave
+      waves.push({ start: g.time, extent: gDur, steps: g.steps.map(s => ({ ...s, delay: 0 })) });
+    } else {
+      // OVERLAP: join the running wave with an exact delayed start
+      const delay = Math.max(0, g.time - lastWave.start);
+      for (const s of g.steps) lastWave.steps.push({ ...s, delay });
+      lastWave.extent = Math.max(lastWave.extent, delay + gDur);
+    }
+  }
+
+  let clock = 0;   // actual video time after the last emitted statement
+  for (const wave of waves) {
+    const wait = wave.start - clock;
+    if (wait > 0.05) L.push(`${indent}self.wait(${wait.toFixed(1)})`);
+    emitWave(L, indent, wave);
+    clock = wave.start + wave.extent;
+  }
+  return clock;
+}
+
+// ── Main generator ──────────────────────────────────────────────────────────
+
+/**
  * Emit one same-time step group and return the timeline time it consumes.
  *
  * Editor semantics (issue #36): animations that start together play in
@@ -292,9 +394,11 @@ export function generatePythonCode(project, assetsPath) {
   );
   if (families.length > 0) {
     L.push(`${indent}# Parent/child families`);
-    // Deepest subtrees first so nested families exist before their parents.
+    // SHALLOWEST subtrees first: a family references its children's families
+    // (fam_A = VGroup(A, fam_B)), so fam_B must be defined before fam_A —
+    // ascending subtree depth gives exactly that order.
     const ordered = [...families].sort((a, b) =>
-      subtreeDepth(visibleObjects, b.id) - subtreeDepth(visibleObjects, a.id)
+      subtreeDepth(visibleObjects, a.id) - subtreeDepth(visibleObjects, b.id)
     );
     for (const parent of ordered) {
       const kids = visibleObjects.filter(c => c.parentId === parent.id);
@@ -369,7 +473,14 @@ export function generatePythonCode(project, assetsPath) {
       // Unknown enter animation: fall back to fade_in (v4 behaviour)
       code = animationCode('enter', 'fade_in', { varName: n, duration: dur });
     }
-    if (code) steps.push({ time: t, order: 0, code, dur: entry?.zeroDuration ? 0 : dur });
+    if (code) {
+      if (String(code).startsWith('add:')) {
+        // Instant appearance — a zero-duration self.add step
+        steps.push({ time: t, order: 0, isAdd: true, anim: String(code).slice(4).trim(), dur: 0 });
+      } else {
+        steps.push({ time: t, order: 0, code, dur: entry?.zeroDuration ? 0 : dur });
+      }
+    }
   }
 
   // Clip animations — the animated var is the FAMILY wrapper when the
@@ -413,30 +524,26 @@ export function generatePythonCode(project, assetsPath) {
     if (code) steps.push({ time: exitTime, order: 2, code, dur });
   }
 
-  // Sort & emit. Steps that start at the same time are SIMULTANEOUS in the
-  // editor timeline (issue #36): they are batched into one self.play(...)
-  // instead of running back-to-back, so the exported duration matches the
-  // editor instead of inflating by the sum of every same-time animation.
+  // Sort & emit through the WAVE SCHEDULER: same-time steps are simultaneous
+  // (one self.play, per-animation run_time — issue #36) and OVERLAPPING steps
+  // run in parallel with exact delayed starts (E2E audit: the exported
+  // timeline matches the editor to the frame, no drift).
   steps.sort((a, b) => a.time - b.time || a.order - b.order);
 
   L.push(`${indent}# Animation`);
-  let t = 0;
-  const EPS = 0.05;
-  let i = 0;
-  while (i < steps.length) {
-    let j = i;
-    while (j + 1 < steps.length && Math.abs(steps[j + 1].time - steps[i].time) <= EPS) j++;
-    const group = steps.slice(i, j + 1);
-    const gTime = group[0].time;
+  const timelineEnd = emitTimeline(L, indent, steps);
 
-    const wait = gTime - t;
-    if (wait > 0.05) L.push(`${indent}self.wait(${wait.toFixed(1)})`);
-    t = gTime + emitStepGroup(L, indent, group);
-    i = j + 1;
-  }
-
+  // Trailing hold: the video must span the EDITOR timeline — objects whose
+  // exit anim is 'none' stay on screen until their window ends, and the
+  // project's sceneDuration is honored (the preview shows exactly this).
+  const maxWindowEnd = visibleObjects.reduce((m, o) =>
+    Math.max(m, (o.enterTime || 0) + (o.duration || 0)), 0);
+  const clipEnd = clips.reduce((m, c) => Math.max(m, c.startTime + c.duration), 0);
+  const lastEvent = Math.max(maxWindowEnd, clipEnd, timelineEnd);
+  const total = Math.max(lastEvent + 1, Number(project.sceneDuration) || 0);
+  const hold = Math.max(0.5, total - timelineEnd);
   L.push('');
-  L.push(`${indent}self.wait(1)`);
+  L.push(`${indent}self.wait(${hold.toFixed(1)})`);
   return L.join('\n');
 }
 

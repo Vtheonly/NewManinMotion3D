@@ -204,7 +204,7 @@ test('codegen: legacy 2D project generates class MainScene(Scene)', () => {
   // each carrying its own run_time, not two sequential 0.5s plays.
   assert.match(result.code, /self\.play\(FadeIn\(obj_1, run_time=0\.5\), Write\(obj_2, run_time=0\.5\)\)/);
   assert.doesNotMatch(result.code, /self\.play\(Write\(obj_2\)\s*$/m);
-  assert.match(result.code, /obj_1\.animate\.move_to\(/);         // move clip
+  assert.match(result.code, /ApplyMethod\(obj_1\.move_to, \[/);   // move clip (ctor-style: wave-schedulable, exact overlap timing)
   assert.doesNotMatch(result.code, /MovingCameraScene|ThreeDScene/);
 });
 
@@ -420,10 +420,11 @@ test('codegen: exported timeline duration matches the editor timeline', () => {
       t += rts.length ? Math.max(...rts) : 1;
     }
   }
-  // Editor timeline: enter batch 0.5 + visible until exit at t=5 (wait 4.5)
-  // + exit batch 0.5 + final hold 1 = 6.5s — the exported video ends when the
-  // editor timeline ends, instead of inflating by per-object sequential plays.
-  assert.ok(Math.abs(t - 6.5) < 0.3, `exported duration ~ editor timeline (got ${t.toFixed(1)}s)`);
+  // Editor timeline (computedDuration semantics): enter batch 0.5 + windows
+  // end at t=5 + exit batch 0.5 = 5.5, then the trailing hold spans to the
+  // EDITOR timeline end = max(lastEvent + 1, sceneDuration = 10) = 10s.
+  // The preview plays 10s; the video is 10s — parity, no truncation.
+  assert.ok(Math.abs(t - 10.0) < 0.3, `exported duration ~ editor timeline end (got ${t.toFixed(1)}s)`);
 });
 
 test('codegen: instant (none) enters merge into one zero-duration self.add', () => {
@@ -456,7 +457,7 @@ test('codegen: simultaneous animations with different durations keep their own r
     'parallel independent durations preserved (editor semantics)');
 });
 
-test('codegen: mixed group with .animate uses play-level max run_time', () => {
+test('codegen: scale clip is a ctor-style Transform (exact pivot + per-anim run_time)', () => {
   const objects = [
     { id: 'obj_a', type: 'circle', name: 'A', x: 960, y: 540, width: 100, height: 100,
       fill: '#3b82f6', stroke: '#ffffff', enterTime: 0, duration: 8,
@@ -469,7 +470,10 @@ test('codegen: mixed group with .animate uses play-level max run_time', () => {
   }];
   const result = compileProject(makeProject({ objects, tracks }), '/data/assets/p');
   assert.ok(result.success);
-  assert.match(result.code, /self\.play\(FadeIn\(obj_a\), obj_a\.animate\.scale\([22.00]*\), run_time=1\.4\)/);
+  // Wave scheduler: same-time enter + scale clip in ONE play; the scale is a
+  // Transform onto a pre-scaled copy (pivot-exact, per-animation run_time).
+  assert.match(result.code, /tgt_c1 = obj_a\.copy\(\)\.scale\(2\.000\)/);
+  assert.match(result.code, /FadeIn\(obj_a, run_time=0\.5\), Transform\(obj_a, tgt_c1, run_time=1\.4\)/);
 });
 
 test('codegen: empty text content renders empty, never the placeholder "Text"', () => {
