@@ -10,6 +10,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { compileProject, pickScene } from '../compiler/index.js';
+import { applyLegacyCompat, legacyCompatNotes } from '../compiler/legacyCompat.js';
 import { enqueueRenderJob } from '../queue.js';
 
 const router = Router();
@@ -214,6 +215,12 @@ router.delete('/:id', async (req, res, next) => {
 /**
  * POST /api/projects/:id/render
  * Compile the project to scene.py and enqueue a Manim render job.
+ *
+ * Canonical render-source contract (issue #36): a project whose source of
+ * truth is its Python code (`sourceMode === 'code'`) is NEVER compiled from
+ * the visual scaffold — the exact `codeSource` is rendered (with the
+ * documented legacy compat boundary applied to the scene.py copy only).
+ * This is the server-side enforcement of the same routing the frontend does.
  */
 router.post('/:id/render', async (req, res, next) => {
   try {
@@ -228,6 +235,37 @@ router.post('/:id/render', async (req, res, next) => {
     const projectData = await fs.readFile(projectPath, 'utf-8');
     const project = JSON.parse(projectData);
 
+    const projectDir = getProjectDir(req.dataDir, projectId);
+    await fs.mkdir(projectDir, { recursive: true, mode: 0o777 });
+    const scenePath = path.join(projectDir, 'scene.py');
+
+    // ── Canonical source routing (issue #36) ──
+    if (project.sourceMode === 'code' && typeof project.codeSource === 'string'
+        && project.codeSource.trim().length > 0) {
+      const compat = applyLegacyCompat(project.codeSource);
+      await fs.writeFile(scenePath, compat.source);
+      const pickedCode = pickScene(compat.source, project.scene?.className);
+      if (!pickedCode) {
+        return res.status(400).json({
+          error: 'No renderable scene class found in the project source code',
+          message: 'Define at least one class inheriting from a Manim Scene base.'
+        });
+      }
+      const jobId = `job_${uuidv4().split('-')[0]}`;
+      await enqueueRenderJob({
+        jobId, projectId,
+        sceneFile: `projects/${projectId}/scene.py`,
+        sceneName: pickedCode.name, quality
+      });
+      console.log(`[API] code-sourced render for ${projectId}`
+        + `${compat.applied.length ? ` (legacy compat: ${compat.applied.join(', ')})` : ''}`);
+      return res.status(202).json({
+        jobId, status: 'queued', renderSource: 'code',
+        legacyCompat: legacyCompatNotes(compat.applied),
+        message: 'Render job enqueued from the project source code'
+      });
+    }
+
     // Compile to Python (returns the actual scene class name — may be a
     // MovingCameraScene / ThreeDScene / custom class, not just "MainScene")
     const assetsPath = path.join(req.dataDir, 'assets', projectId);
@@ -241,10 +279,6 @@ router.post('/:id/render', async (req, res, next) => {
     }
 
     // Write scene.py
-    const scenePath = path.join(
-      getProjectDir(req.dataDir, projectId),
-      'scene.py'
-    );
     await fs.writeFile(scenePath, result.code);
 
     console.log(`[API] scene.py written for ${projectId} (${result.code.length} bytes, scene: ${result.sceneName})`);
@@ -296,11 +330,17 @@ router.post('/:id/render-code', async (req, res, next) => {
     const projectDir = getProjectDir(req.dataDir, projectId);
     await fs.mkdir(projectDir, { recursive: true, mode: 0o777 });
 
+    // Legacy compat boundary (issue #36): the rendered scene.py copy may
+    // carry a documented shim for APIs removed from current Manim CE; the
+    // caller's code is never modified and every applied rule is reported.
+    const compat = applyLegacyCompat(codeSource);
+    const renderSource = compat.source;
+
     const scenePath = path.join(projectDir, 'scene.py');
-    await fs.writeFile(scenePath, codeSource);
+    await fs.writeFile(scenePath, renderSource);
 
     // Scene detection: requested name wins if present, else first detected scene
-    const picked = pickScene(codeSource, sceneName);
+    const picked = pickScene(renderSource, sceneName);
     if (!picked) {
       return res.status(400).json({
         error: 'No renderable scene class found',
@@ -326,6 +366,8 @@ router.post('/:id/render-code', async (req, res, next) => {
     res.status(202).json({
       jobId,
       status: 'queued',
+      renderSource: 'code',
+      legacyCompat: legacyCompatNotes(compat.applied),
       message: 'Code render job enqueued'
     });
   } catch (err) {

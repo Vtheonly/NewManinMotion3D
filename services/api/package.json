@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "test": "node --test tests/compiler.test.mjs tests/ir.test.mjs"
+    "test": "node --test tests/compiler.test.mjs tests/ir.test.mjs tests/renderSource.test.mjs"
   },
   "dependencies": {
     "cors": "^2.8.5",

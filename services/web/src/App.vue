@@ -155,6 +155,17 @@
           </div>
 
           <div class="flex-1 overflow-y-auto p-5 space-y-4">
+            <!-- Canonical render source (issue #36) -->
+            <div v-if="isCodeSourced" class="p-2.5 rounded-lg border" style="background: rgb(var(--c-accent) / 0.08); border-color: rgb(var(--c-accent) / 0.3);">
+              <p class="text-[10px] leading-relaxed" style="color: var(--studio-accent);">
+                <strong>Render source: original Python code.</strong>
+                This project was imported from code that the visual canvas cannot fully
+                represent ({{ importDroppedCount }} constructs dropped · {{ importApproxCount }} values approximated).
+                The video is rendered from the exact source, so it reproduces the authored scene.
+                <a href="#" class="underline" @click.prevent="detachFromSource">Detach and render the canvas instead</a>
+              </p>
+            </div>
+
             <!-- Quality selector (before render starts) -->
             <div v-if="!renderStatus">
               <label class="block text-xs font-medium text-studio-text-muted mb-1.5 uppercase tracking-wider">Quality</label>
@@ -333,6 +344,11 @@ export default {
     store()              { return store; },
     isCodeMode()         { return store.project.editorMode === 'code'; },
     isSciMode()          { return store.project.editorMode === 'scientific'; },
+    isCodeSourced()      { return store.project.sourceMode === 'code'
+                            && typeof store.project.codeSource === 'string'
+                            && store.project.codeSource.trim().length > 0; },
+    importDroppedCount() { return (store.project.importReport?.dropped || []).length; },
+    importApproxCount()  { return store.project.importReport?.approximated || 0; },
     error()              { return store.error; },
     showExport()         { return store.showExportDialog; },
     exportCode()         { return store.exportCode; },
@@ -373,11 +389,11 @@ export default {
 
   watch: {
     'store.project.objects': {
-      handler() { if (!this.isCodeMode && this.stageViewMode === 'code' && !this.codeEdited) this._debouncedUpdateCode(); },
+      handler() { if (!this.isCodeMode && this.stageViewMode === 'code' && !this.codeEdited && store.project.sourceMode !== 'code') this._debouncedUpdateCode(); },
       deep: true
     },
     'store.project.tracks': {
-      handler() { if (!this.isCodeMode && this.stageViewMode === 'code' && !this.codeEdited) this._debouncedUpdateCode(); },
+      handler() { if (!this.isCodeMode && this.stageViewMode === 'code' && !this.codeEdited && store.project.sourceMode !== 'code') this._debouncedUpdateCode(); },
       deep: true
     },
     // Re-boot the Suprepto editor whenever the project is swapped in
@@ -538,6 +554,14 @@ export default {
       this.$nextTick(() => this.syncCodeScroll());
     },
     updateStageCode() {
+      // Canonical source contract (issue #36): code-sourced projects show
+      // their exact source in the Code tab — the scaffold's generated code
+      // is a projection and must never replace the canonical text.
+      if (store.project.sourceMode === 'code' && store.project.codeSource) {
+        this.stageCode = store.project.codeSource;
+        this.codeEdited = false;
+        return;
+      }
       try {
         this.stageCode = generateManimScript(store.project);
         this.codeEdited = false;
@@ -587,14 +611,21 @@ export default {
           return;
         }
 
-        // Apply parsed data to the project
-        store.project.stage.backgroundColor = result.stage.backgroundColor;
-        store.project.objects = result.objects;
-        store.project.tracks = result.tracks;
-        actions.deselectAll();
+        // Canonical render-source contract (issue #36): the parsed model is a
+        // scaffold. If anything was dropped or approximated, the original
+        // code is preserved as the render source and reported honestly —
+        // renders no longer come from the lossy approximation.
+        const adopted = actions.adoptImportedCode(this.stageCode, result);
 
         this.codeEdited = false;
-        this.parseMessage = `Applied: ${result.objects.length} objects, ${result.tracks.reduce((s, t) => s + t.clips.length, 0)} animations`;
+        if (adopted.sourceMode === 'code') {
+          const r = adopted.report;
+          this.parseMessage = `Imported ${r.objectCount} objects · ${r.dropped.length} constructs and ` +
+            `${r.approximated} approximated values could not be represented visually. ` +
+            'Renders use the original source code (File > Detach from source to render the canvas instead).';
+        } else {
+          this.parseMessage = `Applied: ${result.objects.length} objects, ${result.tracks.reduce((s, t) => s + t.clips.length, 0)} animations`;
+        }
         this.parseMessageOk = true;
         this._clearParseMsg();
 
@@ -609,6 +640,30 @@ export default {
     _clearParseMsg() {
       clearTimeout(this._parseMessageTimer);
       this._parseMessageTimer = setTimeout(() => { this.parseMessage = ''; }, 4000);
+    },
+
+    /**
+     * Explicitly detach from the imported source (issue #36): the visual
+     * scaffold becomes the render source. Warned — dropped constructs stay
+     * dropped; this is a one-way ownership decision by the user.
+     */
+    detachFromSource() {
+      if (!this.isCodeSourced) return;
+      const r = store.project.importReport || {};
+      const dropped = (r.dropped || []).length;
+      const approx = r.approximated || 0;
+      const ok = confirm(
+        'Detach from the source code and render the canvas instead?\n\n' +
+        `The import dropped ${dropped} construct${dropped === 1 ? '' : 's'} and approximated ` +
+        `${approx} value${approx === 1 ? '' : 's'}. After detaching, renders come from the ` +
+        'visual canvas model — the dropped content is gone from the video.\n\n' +
+        'The source code is kept in the project (Code tab) for reference.'
+      );
+      if (!ok) return;
+      actions.detachFromSource();
+      this.parseMessage = 'Detached — renders now use the visual canvas model.';
+      this.parseMessageOk = true;
+      this._clearParseMsg();
     },
     copyStageCode() {
       navigator.clipboard.writeText(this.stageCode).then(() => {

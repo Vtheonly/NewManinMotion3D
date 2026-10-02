@@ -82,5 +82,38 @@ ok(!names.has('g'), 'helper-function loop internals not leaked (grid `g` virtual
 const totalDur = w.objects.reduce((m, o) => Math.max(m, (o.enterTime || 0) + (o.duration || 0)), 0);
 ok(totalDur > 20, `timeline spans the scene (total ${totalDur.toFixed(1)}s > 20s)`);
 
+// ── coverage contract (issue #36) ─────────────────────────────────────────
+console.log('=== coverage report (issue #36) ===');
+ok(w.coverage && typeof w.coverage === 'object', 'importer returns a coverage report');
+ok(w.coverage.dropped.length > 0, 'dropped constructs reported (composites, camera, helpers)');
+ok(w.coverage.approximated > 0, 'approximated objects reported');
+ok(w.coverage.complete === false, 'synth wall is honestly reported as lossy');
+const droppedNames = new Set(w.coverage.dropped.map((d) => d.name));
+ok(droppedNames.has('protein') && droppedNames.has('net') && droppedNames.has('wall'),
+  'the big composites (protein / net / wall) are named as dropped');
+ok(droppedNames.has('camera_frame'), 'camera motion loss is named');
+ok(!w.objects.some((o) => o.type === 'text' && o.content === 'Text'),
+  'no literal "Text" placeholder content (raw expressions + approx flags instead)');
+ok(w.objects.filter((o) => Array.isArray(o.approx) && o.approx.length).length === w.coverage.approximated,
+  'approximated count matches flagged objects');
+const digitalBg = w.objects.find((o) => o.name === 'digital_bg');
+ok(digitalBg && digitalBg.approx && digitalBg.approx.includes('color'),
+  'unresolvable named colors are flagged on the object (no silent white)');
+
+// A fully representable scene must report complete coverage.
+console.log('=== coverage: representable scene is complete ===');
+const clean = parseManimScript(`
+from manim import *
+class Main(Scene):
+    def construct(self):
+        title = Text("Hello", font_size=50)
+        box = Rectangle(width=2, height=1).set_fill("#0b1226", 1)
+        box.move_to([1, 1, 0])
+        self.play(FadeIn(title), FadeIn(box), run_time=0.8)
+        self.wait(1.2)
+        self.play(FadeOut(title), FadeOut(box), run_time=0.6)
+`);
+ok(clean.coverage.complete === true, 'no drops/approximations for a representable scene');
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
