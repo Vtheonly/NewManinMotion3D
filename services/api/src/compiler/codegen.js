@@ -17,11 +17,12 @@
  */
 
 import { registries } from './registry/index.js';
-import { makeObjectContext, unknownObjectLines } from './registry/objects.js';
+import { makeObjectContext, unknownObjectLines, objectDimensionality } from './registry/objects.js';
 import { animationCode, getAnimation } from './registry/animations.js';
 import { resolveSceneType } from './registry/scenes.js';
 import {
-  hex, safeNum, safeOpacity, vn, rtOpt, stageToManim, isSystemFont
+  hex, safeNum, safeOpacity, vn, rtOpt, stageToManim, editorRotationToManim,
+  isSystemFont, FRAME_HEIGHT
 } from './registry/shared.js';
 
 export { EASING_MAP } from './registry/shared.js';
@@ -32,6 +33,39 @@ export function safeClassName(name, fallback = 'MainScene') {
   const n = name.replace(/[^A-Za-z0-9_]/g, '_');
   if (!/^[A-Za-z_]/.test(n) || n.length === 0) return fallback;
   return n;
+}
+
+/** Family wrapper variable for an object that has children: animating the
+ *  wrapper propagates the transform to every descendant (VGroup holds
+ *  references, so individually-added children follow). */
+export function familyVar(id) {
+  return `fam_${vn(id)}`;
+}
+
+/** Variable to animate for a clip targeting `objId`: the family wrapper when
+ *  the object has visible children, the bare mobject otherwise. */
+function clipTargetVar(objects, objId) {
+  const hasKids = objects.some(o => o.parentId === objId && o.visible !== false);
+  return hasKids ? familyVar(objId) : vn(objId);
+}
+
+/** Depth of an object's descendant chain (for bottom-up family emission). */
+function subtreeDepth(objects, id, seen = new Set()) {
+  if (seen.has(id)) return 0;          // cycle guard — treated as leaf
+  seen.add(id);
+  let depth = 0;
+  for (const o of objects) {
+    if (o.parentId === id && o.visible !== false) {
+      depth = Math.max(depth, 1 + subtreeDepth(objects, o.id, seen));
+    }
+  }
+  return depth;
+}
+
+/** Stage-relative depth (pixels, 0 = stage plane) -> Manim z units. */
+function stageZToManim(z, sh) {
+  const n = Number(z);
+  return Number.isFinite(n) ? (n / sh) * FRAME_HEIGHT : 0;
 }
 
 // ── Main generator ──────────────────────────────────────────────────────────
@@ -143,13 +177,34 @@ export function generatePythonCode(project, assetsPath) {
   const sh = project.stage.height;
   const assetMap = project._assetMap || {};
 
+  // ── Canonical object set (E2E audit):
+  //    - `visible: false` objects are never emitted (preview, timeline and
+  //      codegen agree on the same contract)
+  //    - objects are emitted in zOrder (layer) order — Manim's render order
+  //      is creation order, so the video layers match the editor canvas
+  //      (stable sort: equal zOrder keeps insertion order)
+  //    - clips referencing dropped objects are dropped with them
+  const visibleObjects = (project.objects || [])
+    .filter(o => o.visible !== false)
+    .sort((a, b) => (a.zOrder || 0) - (b.zOrder || 0));
+  const visibleIds = new Set(visibleObjects.map(o => o.id));
+  const liveClips = [];
+  for (const track of project.tracks || []) {
+    for (const clip of track.clips || []) {
+      const srcOk = !clip.sourceId || visibleIds.has(clip.sourceId);
+      const tgtOk = !clip.targetId || visibleIds.has(clip.targetId);
+      if (srcOk && tgtOk) liveClips.push(clip);
+    }
+  }
+
   // ── Scene type resolution (registry-driven, no hardcoded Scene base) ──
   const sceneType = resolveSceneType(project);
   const className = safeClassName(project.scene?.className, 'MainScene');
 
-  // ── Font collection (text objects only, unchanged behaviour) ──
+  // ── Font collection (visible text objects only — invisible objects
+  //    never render, so their fonts are not registered) ──
   const usedFonts = new Set();
-  for (const obj of (project.objects || [])) {
+  for (const obj of visibleObjects) {
     if (obj.type === 'text' && obj.fontFamily && !isSystemFont(obj.fontFamily)) {
       usedFonts.add(obj.fontFamily);
     }
@@ -181,7 +236,7 @@ export function generatePythonCode(project, assetsPath) {
   for (const line of prologue) L.push(`        ${line}`);
   L.push('');
 
-  if (!project.objects || project.objects.length === 0) {
+  if (visibleObjects.length === 0) {
     L.push('        self.wait(1)');
     return L.join('\n');
   }
@@ -199,11 +254,11 @@ export function generatePythonCode(project, assetsPath) {
     L.push('');
   }
 
-  // ── Object definitions (registry-driven) ──
+  // ── Object definitions (registry-driven, zOrder-sorted) ──
   const ctx = makeObjectContext({ stage: project.stage, assetsPath, assetMap });
   const oMap = {};
   L.push(`${indent}# Objects`);
-  for (const obj of project.objects) {
+  for (const obj of visibleObjects) {
     oMap[obj.id] = obj;
 
     const typeEntry = registries.objects.get(obj.type);
@@ -216,31 +271,72 @@ export function generatePythonCode(project, assetsPath) {
     }
     for (const l of lines) L.push(indent + l);
 
-    // Uniform placement (every object), preserved from v4
+    // Uniform placement (every object), preserved from v4.
+    // 3D objects carry a stage-relative z (default 0); rotation is negated
+    // because the editor's y-axis points down while Manim's points up.
+    const is3d = objectDimensionality(obj.type) === '3d';
     const mp = stageToManim(obj.x, obj.y, sw, sh);
-    L.push(indent + `${vn(obj.id)}.move_to([${mp.x.toFixed(3)}, ${mp.y.toFixed(3)}, 0])`);
-    if (obj.rotation) L.push(indent + `${vn(obj.id)}.rotate(${(obj.rotation * Math.PI / 180).toFixed(4)})`);
+    const mz = is3d ? stageZToManim(obj.z, sh) : 0;
+    L.push(indent + `${vn(obj.id)}.move_to([${mp.x.toFixed(3)}, ${mp.y.toFixed(3)}, ${mz.toFixed(3)}])`);
+    if (obj.rotation) L.push(indent + `${vn(obj.id)}.rotate(${editorRotationToManim(obj.rotation).toFixed(4)})`);
     L.push('');
   }
 
-  // ── Groups ──
-  const groups = project.groups || [];
-  if (groups.length > 0) {
-    L.push(`${indent}# Groups`);
-    for (const g of groups) {
-      if (!g.childIds || g.childIds.length === 0) continue;
-      const childVars = g.childIds.map(id => vn(id)).filter(Boolean).join(', ');
-      const gn = vn(g.id);
-      L.push(`${indent}${gn} = VGroup(${childVars})`);
+  // ── Parent/child families (E2E audit: hierarchy is canonical) ──
+  // A parent with children gets a VGroup wrapper holding itself + children
+  // (a child with its own children contributes ITS family group — nesting).
+  // Animating the wrapper in Manim moves/rotates/scales every descendant,
+  // exactly like the editor preview's parent transform propagation.
+  const families = visibleObjects.filter(o =>
+    visibleObjects.some(c => c.parentId === o.id)
+  );
+  if (families.length > 0) {
+    L.push(`${indent}# Parent/child families`);
+    // Deepest subtrees first so nested families exist before their parents.
+    const ordered = [...families].sort((a, b) =>
+      subtreeDepth(visibleObjects, b.id) - subtreeDepth(visibleObjects, a.id)
+    );
+    for (const parent of ordered) {
+      const kids = visibleObjects.filter(c => c.parentId === parent.id);
+      const refs = [vn(parent.id), ...kids.map(c =>
+        visibleObjects.some(k => k.parentId === c.id) ? familyVar(c.id) : vn(c.id)
+      )];
+      L.push(`${indent}${familyVar(parent.id)} = VGroup(${refs.join(', ')})`);
     }
     L.push('');
   }
 
-  // ── Collect clips ──
-  const clips = [];
-  for (const track of project.tracks) {
-    for (const clip of track.clips) clips.push(clip);
+  // ── Groups (childIds may reference objects AND other groups — nesting) ──
+  const groups = project.groups || [];
+  const emittedGroups = new Set();
+  function emitGroup(g, stack) {
+    if (!g || emittedGroups.has(g.id) || stack.has(g.id)) return;  // cycle guard
+    if (!g.childIds || g.childIds.length === 0) return;
+    stack.add(g.id);
+    const refs = [];
+    for (const cid of g.childIds) {
+      if (visibleIds.has(cid)) refs.push(vn(cid));
+      else {
+        const child = groups.find(x => x.id === cid);
+        if (child) {
+          emitGroup(child, stack);            // inner groups first
+          if (emittedGroups.has(child.id)) refs.push(vn(child.id));
+        }
+      }
+    }
+    stack.delete(g.id);
+    if (refs.length === 0) return;            // group fully filtered out
+    emittedGroups.add(g.id);
+    L.push(`${indent}${vn(g.id)} = VGroup(${refs.join(', ')})`);
   }
+  if (groups.length > 0) {
+    L.push(`${indent}# Groups`);
+    for (const g of groups) emitGroup(g, new Set());
+    L.push('');
+  }
+
+  // ── Collect clips (clips referencing invisible objects were dropped) ──
+  const clips = liveClips.slice();
   clips.sort((a, b) => a.startTime - b.startTime);
 
   // Transform relationship tracking (unchanged)
@@ -257,7 +353,7 @@ export function generatePythonCode(project, assetsPath) {
   const steps = [];
 
   // Enter animations
-  for (const obj of project.objects) {
+  for (const obj of visibleObjects) {
     if (transformTargets.has(obj.id)) continue;
     const t = obj.enterTime || 0;
     const n = vn(obj.id);
@@ -276,17 +372,26 @@ export function generatePythonCode(project, assetsPath) {
     if (code) steps.push({ time: t, order: 0, code, dur: entry?.zeroDuration ? 0 : dur });
   }
 
-  // Clip animations
+  // Clip animations — the animated var is the FAMILY wrapper when the
+  // target object has children (parent transforms affect children), with
+  // the parent's base center as the pivot the preview propagates around.
   for (const c of clips) {
-    const sn = vn(c.sourceId);
+    const targetObj = visibleObjects.find(o => o.id === c.sourceId);
+    const sn = clipTargetVar(visibleObjects, c.sourceId);
+    const isFamily = sn !== vn(c.sourceId);
+    let family = null;
+    if (isFamily && targetObj) {
+      const mp = stageToManim(targetObj.x, targetObj.y, sw, sh);
+      family = { pivot: [mp.x, mp.y, stageZToManim(targetObj.z, sh)] };
+    }
     const code = animationCode('clip', c.type, {
-      varName: sn, clip: c, duration: c.duration, project
+      varName: sn, clip: c, duration: c.duration, project, family
     });
     if (code) steps.push({ time: c.startTime, order: 1, code, dur: c.duration });
   }
 
   // Exit animations
-  for (const obj of project.objects) {
+  for (const obj of visibleObjects) {
     if (transformSources.has(obj.id)) continue;
     let exitTime = (obj.enterTime || 0) + (obj.duration || 3);
     for (const c of clips) {
@@ -344,4 +449,9 @@ export function objectCode(obj, sw, sh, assetsPath, assetMap) {
   });
   const entry = registries.objects.get(obj.type);
   return entry ? entry.codegen(obj, ctx) : unknownObjectLines(obj);
+}
+
+/** Sort objects by zOrder with insertion order as the tiebreaker. */
+export function sortObjectsByZOrder(objects) {
+  return [...(objects || [])].sort((a, b) => (a.zOrder || 0) - (b.zOrder || 0));
 }

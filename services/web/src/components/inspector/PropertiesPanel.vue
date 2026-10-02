@@ -150,6 +150,40 @@
         </div>
       </Section>
 
+      <!-- Visibility + Parent (canonical hierarchy / visibility — E2E audit) -->
+      <Section label="Visibility & Hierarchy">
+        <div class="space-y-1.5">
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" :checked="obj.visible !== false" @change="u('visible', $event.target.checked)" class="accent-studio-accent" />
+            <span class="text-[10px] text-studio-text-muted">Visible in render</span>
+          </label>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] text-studio-text-muted w-12">Parent</span>
+            <select class="select text-xs flex-1" :value="obj.parentId || ''" @change="setParent($event.target.value)">
+              <option value="">— none (root) —</option>
+              <option v-for="cand in parentCandidates" :key="cand.id" :value="cand.id">{{ cand.name }}</option>
+            </select>
+          </div>
+          <p v-if="childCount > 0" class="text-[9px] text-studio-text-muted/50 leading-snug">
+            {{ childCount }} child object{{ childCount > 1 ? 's' : '' }} follow this object's transforms
+          </p>
+        </div>
+      </Section>
+
+      <!-- 3D properties -->
+      <Section v-if="is3d" label="3D Properties">
+        <div class="grid grid-cols-2 gap-1.5">
+          <Num v-if="obj.type === 'cube'" label="Size" :value="effective3dSize" :min="1" class="col-span-2" @input="u3dSize($event)" />
+          <template v-else>
+            <Num label="Width" :value="obj.width" :min="1" @input="u('width', $event)" />
+            <Num label="Height" :value="obj.height" :min="1" @input="u('height', $event)" />
+          </template>
+          <Num label="Z (depth pos)" :value="obj.z ?? 0" :step="10" @input="u('z', $event)" />
+          <Num v-if="obj.type === 'sphere' || obj.type === 'cylinder'" label="Resolution" :value="obj.resolution ?? 24" :min="8" :max="48" @input="u('resolution', $event)" />
+        </div>
+        <p class="text-[8px] text-studio-text-muted/40 mt-1 leading-snug">Z moves the object toward/away from the 3D camera (stage pixels). The render applies the real 3D camera; the canvas shows the layout projection.</p>
+      </Section>
+
       <!-- Dot Grid -->
       <Section v-if="obj.type === 'dot_grid'" label="Grid Settings">
         <div class="grid grid-cols-2 gap-1.5">
@@ -286,6 +320,14 @@
         <select class="select text-xs" :value="clip.easing" @change="uc('easing', $event.target.value)">
           <option v-for="e in easings" :key="e.value" :value="e.value">{{ e.label }}</option>
         </select>
+      </Section>
+
+      <!-- Track assignment (blending: higher track wins) -->
+      <Section label="Track">
+        <select class="select text-xs" :value="clipTrackIndex" @change="moveClipTrack($event.target.value)">
+          <option v-for="(t, i) in clipTracks" :key="t.id" :value="i">{{ t.name }} ({{ t.clips.length }})</option>
+        </select>
+        <p class="text-[8px] text-studio-text-muted/40 mt-1 leading-snug">Overlapping clips on different tracks: the lower track number wins per property.</p>
       </Section>
 
       <Section label="Overshoot">
@@ -558,6 +600,27 @@ export default {
     effectiveSize() {
       if (!this.obj) return 0;
       return Math.min(this.obj.width || 0, this.obj.height || 0) || 1;
+    },
+    /** Parent candidates: every other object (cycles are rejected by the action) */
+    parentCandidates() {
+      if (!this.obj) return [];
+      return store.project.objects.filter(o => o.id !== this.obj.id);
+    },
+    childCount() {
+      if (!this.obj) return 0;
+      return store.project.objects.filter(o => o.parentId === this.obj.id).length;
+    },
+    is3d() {
+      return this.obj && ['cube', 'sphere', 'cone', 'cylinder'].includes(this.obj.type);
+    },
+    effective3dSize() {
+      if (!this.obj) return 0;
+      return Math.min(this.obj.width || 0, this.obj.height || 0) || 1;
+    },
+    clipTracks() { return store.project.tracks; },
+    clipTrackIndex() {
+      if (!this.clip) return 0;
+      return Math.max(0, actions.trackIndexOfClip(this.clip.id));
     }
   },
 
@@ -583,6 +646,18 @@ export default {
     isSel(id) { return store.selectedObjectIds.includes(id); },
     selObj(id, e) { actions.selectObject(id, e.shiftKey || e.ctrlKey); },
     align(anchor) { if (this.obj) actions.alignObject(this.obj.id, anchor); },
+    setParent(parentId) {
+      if (!this.obj) return;
+      actions.setParent(this.obj.id, parentId === '' ? null : parentId);
+    },
+    u3dSize(v) {
+      if (!this.obj) return;
+      actions.updateObject(this.obj.id, { width: v, height: v });
+    },
+    moveClipTrack(val) {
+      if (!this.clip) return;
+      actions.moveClip(this.clip.id, Number(val));
+    },
     ungroup(groupId) { actions.ungroupObjects(groupId); },
     anim(type) {
       if (!this.obj) return;

@@ -18,7 +18,7 @@
  */
 
 import { registries } from './index.js';
-import { vn, rfOpt, rtOpt, stageToManim } from './shared.js';
+import { vn, rfOpt, rtOpt, stageToManim, editorRotationToManim } from './shared.js';
 
 /** Helpers available to every animation codegen function. */
 export const animationHelpers = { vn, rfOpt, rtOpt, stageToManim };
@@ -168,17 +168,38 @@ registerAnimation('clip', 'transform', {
 
 registerAnimation('clip', 'move', {
   label: 'Move',
-  codegen: ({ varName, clip, project }) => {
+  codegen: ({ varName, clip, project, family }) => {
     const sw = project.stage.width, sh = project.stage.height;
-    const mp = stageToManim(clip.params?.targetX || 0, clip.params?.targetY || 0, sw, sh);
+    const tx = clip.params?.targetX ?? 0, ty = clip.params?.targetY ?? 0;
+    if (family) {
+      // Family move: translate the whole subtree by the SAME delta the
+      // preview applies (target - parent base position) so the parent lands
+      // exactly on target and children ride along rigidly.
+      const dx = stageToManim(tx, ty, sw, sh).x - family.pivot[0];
+      const dy = stageToManim(tx, ty, sw, sh).y - family.pivot[1];
+      return `self.play(${varName}.animate.shift([${dx.toFixed(3)}, ${dy.toFixed(3)}, 0])${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
+    }
+    const mp = stageToManim(tx, ty, sw, sh);
     return `self.play(${varName}.animate.move_to([${mp.x.toFixed(2)}, ${mp.y.toFixed(2)}, 0])${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
   }
 });
 
 registerAnimation('clip', 'scale', {
   label: 'Scale',
-  codegen: ({ varName, clip }) =>
-    `self.play(${varName}.animate.scale(${(clip.params?.targetScaleX || 1).toFixed(2)})${rtOpt(clip.duration)}${rfOpt(clip.easing)})`
+  codegen: ({ varName, clip, family }) => {
+    const sx = Number(clip.params?.targetScaleX ?? 1) || 1;
+    const sy = Number(clip.params?.targetScaleY ?? sx) || sx;
+    // Uniform scale is the common case; non-uniform X/Y (the editor supports
+    // independent targetScaleX/Y) maps to stretch() about the center, which
+    // is what the preview applies (E2E preview/export parity).
+    // A family scales about the PARENT's center — the pivot the preview
+    // propagates children around.
+    const pivot = family ? `, about_point=[${family.pivot[0].toFixed(3)}, ${family.pivot[1].toFixed(3)}, ${family.pivot[2].toFixed(3)}]` : '';
+    const body = Math.abs(sx - sy) < 1e-6
+      ? `${varName}.animate.scale(${sx.toFixed(3)}${pivot})`
+      : `${varName}.animate.stretch(${sx.toFixed(3)}, 0${pivot}).stretch(${sy.toFixed(3)}, 1${pivot})`;
+    return `self.play(${body}${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
+  }
 });
 
 registerAnimation('clip', 'fade', {
@@ -193,9 +214,14 @@ registerAnimation('clip', 'fade', {
 
 registerAnimation('clip', 'rotate', {
   label: 'Rotate',
-  codegen: ({ varName, clip, project }) => {
+  codegen: ({ varName, clip, project, family }) => {
     const srcObj = (project.objects || []).find(o => o.id === clip.sourceId);
-    const ang = ((clip.params?.targetRotation || 360) - (srcObj?.rotation || 0)) * Math.PI / 180;
-    return `self.play(Rotate(${varName}, angle=${ang.toFixed(2)})${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
+    // Editor rotation is clockwise-positive (canvas y-down); Manim rotates
+    // counter-clockwise — negate the delta or the video mirrors the preview.
+    const delta = ((clip.params?.targetRotation ?? 360) - (srcObj?.rotation || 0));
+    const ang = editorRotationToManim(delta);
+    // A family rotates about the PARENT's center (the preview's pivot).
+    const pivot = family ? `, about_point=[${family.pivot[0].toFixed(3)}, ${family.pivot[1].toFixed(3)}, ${family.pivot[2].toFixed(3)}]` : '';
+    return `self.play(Rotate(${varName}, angle=${ang.toFixed(2)}${pivot})${rtOpt(clip.duration)}${rfOpt(clip.easing)})`;
   }
 });

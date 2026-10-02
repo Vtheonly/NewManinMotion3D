@@ -28,6 +28,20 @@
       </button>
     </div>
 
+    <!-- 3D Solids Section -->
+    <div class="flex flex-col items-center gap-1 pt-2 mt-1 border-t border-studio-border/50 w-full px-1">
+      <span class="text-[9px] text-purple-400/80 uppercase tracking-widest mb-1">3D</span>
+      <button
+        v-for="shape in shapes3d"
+        :key="shape.type"
+        class="tool-btn shape-btn"
+        :data-tooltip="shape.label + ' (switches scene to 3D)'"
+        @click="addShape(shape.type)"
+      >
+        <span v-html="shape.icon" class="text-base"></span>
+      </button>
+    </div>
+
     <!-- Spacer -->
     <div class="flex-1"></div>
 
@@ -71,6 +85,12 @@ export default {
         { type: 'circle', label: 'Circle', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>' },
         { type: 'dot', label: 'Dot', icon: '<svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>' },
         { type: 'dot_grid', label: 'Dot Grid', icon: '<svg width="16" height="16" viewBox="0 0 24 24"><circle cx="4" cy="4" r="1.5" fill="currentColor"/><circle cx="12" cy="4" r="1.5" fill="currentColor"/><circle cx="20" cy="4" r="1.5" fill="currentColor"/><circle cx="4" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="20" cy="12" r="1.5" fill="currentColor"/><circle cx="4" cy="20" r="1.5" fill="currentColor"/><circle cx="12" cy="20" r="1.5" fill="currentColor"/><circle cx="20" cy="20" r="1.5" fill="currentColor"/></svg>' }
+      ],
+      shapes3d: [
+        { type: 'cube', label: 'Cube', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2l8 4.5v9L12 20l-8-4.5v-9L12 2z"/><path d="M12 2v9m0 0l8-4.5M12 11L4 6.5" opacity="0.6"/></svg>' },
+        { type: 'sphere', label: 'Sphere', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="9" ry="3.4" opacity="0.6"/></svg>' },
+        { type: 'cone', label: 'Cone', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3L4 18h16L12 3z"/><ellipse cx="12" cy="18" rx="8" ry="2.6" opacity="0.6"/></svg>' },
+        { type: 'cylinder', label: 'Cylinder', icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="12" cy="6" rx="8" ry="2.8"/><path d="M4 6v12"/><path d="M20 6v12"/><path d="M4 18c0 1.55 3.58 2.8 8 2.8s8-1.25 8-2.8" opacity="0.6"/></svg>' }
       ]
     };
   },

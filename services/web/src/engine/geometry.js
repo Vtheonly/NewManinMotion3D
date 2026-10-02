@@ -32,6 +32,11 @@ export function generateShapePoints(type, width, height, quality = 'medium') {
     case 'line':      return generateLinePoints(width, height, n);
     case 'arrow':     return generateArrowPoints(width, height, n);
     case 'text':      return generateSquarePoints(width, height, n);
+    // 3D primitives morph through their silhouette outlines
+    case 'cube':      return generateSquarePoints(width, height, n);
+    case 'sphere':    return generateCirclePoints(width, height, n);
+    case 'cone':      return generateTrianglePoints(width, height, n);
+    case 'cylinder':  return generateSquarePoints(width, height, n);
     default:          return generateCirclePoints(width, height, n);
   }
 }

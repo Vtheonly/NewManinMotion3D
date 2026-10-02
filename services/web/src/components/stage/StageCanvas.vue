@@ -70,6 +70,10 @@
               <v-text :config="latexBadgeCfg(obj)" />
             </v-group>
 
+            <!-- 3D solids (projected layout preview; the render applies the
+                 real 3D camera — position/size/colors match the canvas) -->
+            <v-shape v-if="is3dType(obj.type) && isVis(obj.id)" :key="obj.id" :config="solid3dCfg(obj)" @mousedown="onObjDown(obj.id, $event)" @dragend="onDragEnd(obj.id, $event)" @transform="onTransform(obj.id, $event)" @transformend="onTransformEnd(obj.id, $event)" />
+
             <!-- Axes -->
             <v-group v-if="obj.type === 'axes' && isVis(obj.id)" :key="obj.id" :config="groupCfg(obj)" @mousedown="onObjDown(obj.id, $event)" @dragend="onDragEnd(obj.id, $event)" @transform="onTransform(obj.id, $event)" @transformend="onTransformEnd(obj.id, $event)">
               <v-rect :config="axesBgCfg(obj)" />
@@ -132,6 +136,19 @@ import { store, actions, getters } from '../../store/project.js';
 import { generateDotGridPositions } from '../../engine/geometry.js';
 import { applyOverrides } from '../../engine/blending.js';
 import { loadFont, isFontLoaded } from '../../utils/fontLoader.js';
+
+/** Multiply a hex color's brightness (factor > 1 lighter, < 1 darker). */
+function shadeColor(hexColor, factor) {
+  let h = String(hexColor || '#888888').replace('#', '');
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  if (h.length === 8) h = h.slice(0, 6);
+  const num = parseInt(h, 16);
+  if (!Number.isFinite(num) || Number.isNaN(num)) return '#888888';
+  const r = Math.min(255, Math.round(((num >> 16) & 255) * factor));
+  const g = Math.min(255, Math.round(((num >> 8) & 255) * factor));
+  const b = Math.min(255, Math.round((num & 255) * factor));
+  return `rgb(${r},${g},${b})`;
+}
 
 export default {
   name: 'StageCanvas',
@@ -387,30 +404,124 @@ export default {
       const L = this.live(obj);
       const e = this.eff(obj); const p = L ? { x: L.x, y: L.y } : this.s2c(e.x - e.width / 2, e.y - e.height / 2);
       const w = L ? L.w : e.width * this.vs, h = L ? L.h : e.height * this.vs, rot = L ? L.rotation : (e.rotation || 0);
-      return { x: p.x, y: p.y, width: w, height: h, fill: e.fill, stroke: e.stroke, strokeWidth: (e.strokeWidth || 2) * this.vs / 2, opacity: e.opacity ?? 1, rotation: rot, scaleX: 1, scaleY: 1, cornerRadius: (obj.type === 'square' ? 4 : 2) * this.vs, draggable: store.activeTool === 'select', id: obj.id, name: 'stageObject', hitStrokeWidth: 10 };
+      return { x: p.x, y: p.y, width: w, height: h, fill: e.fill, stroke: e.stroke, strokeWidth: (e.strokeWidth || 2) * this.vs / 2, opacity: e.opacity ?? 1, rotation: rot, scaleX: e.scaleX ?? 1, scaleY: e.scaleY ?? 1, cornerRadius: (obj.type === 'square' ? 4 : 2) * this.vs, draggable: store.activeTool === 'select', id: obj.id, name: 'stageObject', hitStrokeWidth: 10 };
     },
     circleCfg(obj) {
       const L = this.live(obj);
       const e = this.eff(obj); const p = L ? { x: L.x, y: L.y } : this.s2c(e.x, e.y); const r = L ? Math.min(L.w, L.h) / 2 : Math.min(e.width, e.height) / 2 * this.vs;
       const rot = L ? L.rotation : (e.rotation || 0);
-      return { x: p.x, y: p.y, radius: r, fill: e.fill, stroke: e.stroke, strokeWidth: (e.strokeWidth || 2) * this.vs / 2, opacity: e.opacity ?? 1, rotation: rot, scaleX: 1, scaleY: 1, draggable: store.activeTool === 'select', id: obj.id, name: 'stageObject', hitStrokeWidth: 10 };
+      return { x: p.x, y: p.y, radius: r, fill: e.fill, stroke: e.stroke, strokeWidth: (e.strokeWidth || 2) * this.vs / 2, opacity: e.opacity ?? 1, rotation: rot, scaleX: e.scaleX ?? 1, scaleY: e.scaleY ?? 1, draggable: store.activeTool === 'select', id: obj.id, name: 'stageObject', hitStrokeWidth: 10 };
     },
     ellipseCfg(obj) {
       const L = this.live(obj);
       const e = this.eff(obj); const p = L ? { x: L.x, y: L.y } : this.s2c(e.x, e.y);
       const rx = L ? L.w / 2 : (e.width / 2) * this.vs, ry = L ? L.h / 2 : (e.height / 2) * this.vs, rot = L ? L.rotation : (e.rotation || 0);
-      return { x: p.x, y: p.y, radiusX: rx, radiusY: ry, fill: e.fill, stroke: e.stroke, strokeWidth: (e.strokeWidth || 2) * this.vs / 2, opacity: e.opacity ?? 1, rotation: rot, scaleX: 1, scaleY: 1, draggable: store.activeTool === 'select', id: obj.id, name: 'stageObject', hitStrokeWidth: 10 };
+      return { x: p.x, y: p.y, radiusX: rx, radiusY: ry, fill: e.fill, stroke: e.stroke, strokeWidth: (e.strokeWidth || 2) * this.vs / 2, opacity: e.opacity ?? 1, rotation: rot, scaleX: e.scaleX ?? 1, scaleY: e.scaleY ?? 1, draggable: store.activeTool === 'select', id: obj.id, name: 'stageObject', hitStrokeWidth: 10 };
     },
     dotCfg(obj) {
       const e = this.eff(obj); const p = this.s2c(e.x, e.y);
       return { x: p.x, y: p.y, radius: Math.max(4, e.width / 2 * this.vs), fill: e.fill || '#fff', opacity: e.opacity ?? 1, draggable: store.activeTool === 'select', id: obj.id, name: 'stageObject', hitStrokeWidth: 12 };
+    },
+
+    // ── 3D solids (layout preview — projected wireframe-style drawings that
+    //    keep position/size/rotation/scale/colors canonical; the render
+    //    applies the real 3D mobject + camera) ──
+    is3dType(type) {
+      return type === 'cube' || type === 'sphere' || type === 'cone' || type === 'cylinder';
+    },
+    solid3dCfg(obj) {
+      const e = this.eff(obj); const p = this.s2c(e.x, e.y);
+      const w = e.width * this.vs, h = e.height * this.vs;
+      const rot = e.rotation || 0;
+      const fill = e.fill || '#38bdf8';
+      const stroke = e.stroke || '#ffffff';
+      const swid = (e.strokeWidth || 2) * this.vs / 2;
+      const type = obj.type;
+      return {
+        x: p.x, y: p.y, rotation: rot, scaleX: e.scaleX ?? 1, scaleY: e.scaleY ?? 1,
+        width: w, height: h, offsetX: w / 2, offsetY: h / 2,
+        opacity: e.opacity ?? 1, draggable: store.activeTool === 'select',
+        id: obj.id, name: 'stageObject', hitStrokeWidth: 10,
+        sceneFunc: (ctx, shape) => {
+          ctx.save();
+          ctx.beginPath();
+          if (type === 'cube') {
+            const d = Math.min(w, h) * 0.3;
+            // Front face
+            ctx.beginPath(); ctx.rect(0, d, w, h - d);
+            ctx.fillStyle = fill; ctx.fill();
+            // Top face (lighter)
+            ctx.beginPath(); ctx.moveTo(0, d); ctx.lineTo(d, 0); ctx.lineTo(w + d, 0); ctx.lineTo(w, d); ctx.closePath();
+            ctx.fillStyle = shadeColor(fill, 1.25); ctx.fill();
+            // Right face (darker)
+            ctx.beginPath(); ctx.moveTo(w, d); ctx.lineTo(w + d, 0); ctx.lineTo(w + d, h - d); ctx.lineTo(w, h); ctx.closePath();
+            ctx.fillStyle = shadeColor(fill, 0.72); ctx.fill();
+            // Edges
+            ctx.beginPath(); ctx.rect(0, d, w, h - d);
+            ctx.moveTo(0, d); ctx.lineTo(d, 0); ctx.lineTo(w + d, 0); ctx.lineTo(w, d); ctx.closePath();
+            ctx.moveTo(w, d); ctx.lineTo(w + d, 0); ctx.lineTo(w + d, h - d); ctx.lineTo(w, h); ctx.closePath();
+            ctx.strokeStyle = stroke; ctx.lineWidth = swid; ctx.stroke();
+          } else if (type === 'sphere') {
+            const cx = w / 2, cy = h / 2, rx = w / 2, ry = h / 2;
+            const grad = ctx.createRadialGradient(cx - rx * 0.35, cy - ry * 0.35, rx * 0.1, cx, cy, rx);
+            grad.addColorStop(0, shadeColor(fill, 1.35));
+            grad.addColorStop(1, shadeColor(fill, 0.8));
+            ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+            ctx.fillStyle = grad; ctx.fill();
+            ctx.strokeStyle = stroke; ctx.lineWidth = swid; ctx.stroke();
+            // Equator + meridian guides
+            ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry * 0.32, 0, 0, Math.PI * 2);
+            ctx.strokeStyle = shadeColor(stroke, 0.9); ctx.lineWidth = Math.max(0.5, swid * 0.5); ctx.stroke();
+            ctx.beginPath(); ctx.ellipse(cx, cy, rx * 0.32, ry, 0, 0, Math.PI * 2);
+            ctx.stroke();
+          } else if (type === 'cone') {
+            const ry = w * 0.16, cx = w / 2;
+            const apexY = 0, baseY = h - ry;
+            // Body: apex -> left base -> bottom arc -> right base
+            ctx.beginPath();
+            ctx.moveTo(cx, apexY);
+            ctx.lineTo(0, baseY);
+            ctx.ellipse(cx, baseY, w / 2, ry, 0, Math.PI, 0, true);
+            ctx.closePath();
+            ctx.fillStyle = fill; ctx.fill();
+            ctx.strokeStyle = stroke; ctx.lineWidth = swid; ctx.stroke();
+            // Base ellipse (dashed back edge)
+            ctx.beginPath(); ctx.ellipse(cx, baseY, w / 2, ry, 0, 0, Math.PI * 2);
+            ctx.setLineDash([4, 3]);
+            ctx.strokeStyle = shadeColor(stroke, 0.85); ctx.lineWidth = Math.max(0.5, swid * 0.6); ctx.stroke();
+            ctx.setLineDash([]);
+          } else {  // cylinder
+            const ry = w * 0.16, cx = w / 2;
+            const topY = ry, botY = h - ry;
+            // Body: left side -> bottom arc -> right side -> top arc (closed)
+            ctx.beginPath();
+            ctx.moveTo(0, topY);
+            ctx.lineTo(0, botY);
+            ctx.ellipse(cx, botY, w / 2, ry, 0, Math.PI, 0, true);
+            ctx.lineTo(w, topY);
+            ctx.ellipse(cx, topY, w / 2, ry, 0, 0, Math.PI, false);
+            ctx.closePath();
+            const grad = ctx.createLinearGradient(0, 0, w, 0);
+            grad.addColorStop(0, shadeColor(fill, 0.75));
+            grad.addColorStop(0.5, shadeColor(fill, 1.2));
+            grad.addColorStop(1, shadeColor(fill, 0.75));
+            ctx.fillStyle = grad; ctx.fill();
+            ctx.strokeStyle = stroke; ctx.lineWidth = swid; ctx.stroke();
+            // Top cap
+            ctx.beginPath(); ctx.ellipse(cx, topY, w / 2, ry, 0, 0, Math.PI * 2);
+            ctx.fillStyle = shadeColor(fill, 1.3); ctx.fill(); ctx.stroke();
+          }
+          ctx.restore();
+          ctx.fillStrokeShape(shape);
+        }
+      };
     },
     heartCfg(obj) {
       const L = this.live(obj);
       const e = this.eff(obj); const p = L ? { x: L.x, y: L.y } : this.s2c(e.x, e.y); const w = L ? L.w : e.width * this.vs; const h = L ? L.h : e.height * this.vs; const rot = L ? L.rotation : (e.rotation || 0);
       return {
         x: p.x, y: p.y, fill: e.fill, stroke: e.stroke, strokeWidth: (e.strokeWidth || 2) * this.vs / 2,
-        opacity: e.opacity ?? 1, rotation: rot, scaleX: 1, scaleY: 1,
+        opacity: e.opacity ?? 1, rotation: rot, scaleX: e.scaleX ?? 1, scaleY: e.scaleY ?? 1,
         draggable: store.activeTool === 'select', id: obj.id, name: 'stageObject', hitStrokeWidth: 10,
         sceneFunc: (ctx, shape) => {
           const hw = w / 2, hh = h / 2;
@@ -429,20 +540,20 @@ export default {
       const L = this.live(obj);
       const e = this.eff(obj); const p = L ? { x: L.x, y: L.y } : this.s2c(e.x, e.y);
       const hw = L ? L.w / 2 : e.width / 2 * this.vs, hh = L ? L.h / 2 : e.height / 2 * this.vs, rot = L ? L.rotation : (e.rotation || 0);
-      return { x: p.x, y: p.y, points: [0, -hh, hw, hh, -hw, hh], closed: true, fill: e.fill, stroke: e.stroke, strokeWidth: (e.strokeWidth || 2) * this.vs / 2, opacity: e.opacity ?? 1, rotation: rot, scaleX: 1, scaleY: 1, draggable: store.activeTool === 'select', id: obj.id, name: 'stageObject', hitStrokeWidth: 10 };
+      return { x: p.x, y: p.y, points: [0, -hh, hw, hh, -hw, hh], closed: true, fill: e.fill, stroke: e.stroke, strokeWidth: (e.strokeWidth || 2) * this.vs / 2, opacity: e.opacity ?? 1, rotation: rot, scaleX: e.scaleX ?? 1, scaleY: e.scaleY ?? 1, draggable: store.activeTool === 'select', id: obj.id, name: 'stageObject', hitStrokeWidth: 10 };
     },
     starCfg(obj) {
       const L = this.live(obj);
       const e = this.eff(obj); const p = L ? { x: L.x, y: L.y } : this.s2c(e.x, e.y);
       const outerRadius = L ? Math.min(L.w, L.h) / 2 : Math.min(e.width, e.height) / 2 * this.vs;
       const inner = (obj.innerRatio || 0.4) * outerRadius; const rot = L ? L.rotation : (e.rotation || 0);
-      return { x: p.x, y: p.y, numPoints: obj.starArms || 5, innerRadius: inner, outerRadius: outerRadius, fill: e.fill, stroke: e.stroke, strokeWidth: (e.strokeWidth || 2) * this.vs / 2, opacity: e.opacity ?? 1, rotation: rot, scaleX: 1, scaleY: 1, draggable: store.activeTool === 'select', id: obj.id, name: 'stageObject', hitStrokeWidth: 10 };
+      return { x: p.x, y: p.y, numPoints: obj.starArms || 5, innerRadius: inner, outerRadius: outerRadius, fill: e.fill, stroke: e.stroke, strokeWidth: (e.strokeWidth || 2) * this.vs / 2, opacity: e.opacity ?? 1, rotation: rot, scaleX: e.scaleX ?? 1, scaleY: e.scaleY ?? 1, draggable: store.activeTool === 'select', id: obj.id, name: 'stageObject', hitStrokeWidth: 10 };
     },
     polygonCfg(obj) {
       const L = this.live(obj);
       const e = this.eff(obj); const p = L ? { x: L.x, y: L.y } : this.s2c(e.x, e.y);
       const r = L ? Math.min(L.w, L.h) / 2 : Math.min(e.width, e.height) / 2 * this.vs; const rot = L ? L.rotation : (e.rotation || 0);
-      return { x: p.x, y: p.y, sides: obj.sides || 6, radius: r, fill: e.fill, stroke: e.stroke, strokeWidth: (e.strokeWidth || 2) * this.vs / 2, opacity: e.opacity ?? 1, rotation: rot, scaleX: 1, scaleY: 1, draggable: store.activeTool === 'select', id: obj.id, name: 'stageObject', hitStrokeWidth: 10 };
+      return { x: p.x, y: p.y, sides: obj.sides || 6, radius: r, fill: e.fill, stroke: e.stroke, strokeWidth: (e.strokeWidth || 2) * this.vs / 2, opacity: e.opacity ?? 1, rotation: rot, scaleX: e.scaleX ?? 1, scaleY: e.scaleY ?? 1, draggable: store.activeTool === 'select', id: obj.id, name: 'stageObject', hitStrokeWidth: 10 };
     },
     lineCfg(obj) {
       const e = this.eff(obj); const p = this.s2c(e.x, e.y);
@@ -462,7 +573,8 @@ export default {
       const manimFontScale = (e.fontSize || 48) * this.vs;
       const fontFamily = e.fontFamily || 'Arial';
       const fontStyle = (e.fontWeight === 'bold' ? 'bold ' : '') + (e.fontStyle === 'italic' ? 'italic ' : '');
-      const text = e.content || 'Text';
+      const text = e.content ?? '';   // never a 'Text' placeholder — the render
+                                      // shows exactly this string (empty allowed)
       const align = e.textAlign || 'center';
       const textWidth = this.measureTextWidth(text, manimFontScale, fontFamily, fontStyle);
       let offsetX = 0;

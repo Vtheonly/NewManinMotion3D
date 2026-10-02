@@ -52,14 +52,31 @@ export function safeText(s) {
   return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '');
 }
 
-/** Stage pixel coordinates -> Manim frame coordinates (14 x 8 frame). */
+/** True Manim CE frame geometry (frame_width = 14 + 2/9, frame_height = 8).
+ *  v6: the stage mapping uses the REAL frame so an object at the stage edge
+ *  lands at the video edge — the old 14-unit mapping left a 1.6% margin on
+ *  every x coordinate/size (preview/export parity, E2E audit). */
+export const FRAME_WIDTH = 14 + 2 / 9;   // 14.222…
+export const FRAME_HEIGHT = 8;
+export const FRAME_X_RADIUS = FRAME_WIDTH / 2;  // 7.111…
+export const FRAME_Y_RADIUS = FRAME_HEIGHT / 2; // 4
+
+/** Stage pixel coordinates -> Manim frame coordinates (true frame). */
 export function stageToManim(x, y, sw, sh) {
-  return { x: ((x / sw) - 0.5) * 14, y: -((y / sh) - 0.5) * 8 };
+  return { x: ((x / sw) - 0.5) * FRAME_WIDTH, y: -((y / sh) - 0.5) * FRAME_HEIGHT };
 }
 
 /** Manim frame coordinates -> stage pixels (inverse mapping). */
 export function manimToStage(mx, my, sw, sh) {
-  return { x: ((mx / 14) + 0.5) * sw, y: (-(my / 8) + 0.5) * sh };
+  return { x: ((mx / FRAME_WIDTH) + 0.5) * sw, y: (-(my / FRAME_HEIGHT) + 0.5) * sh };
+}
+
+/** Editor-space rotation (canvas degrees, clockwise-positive) -> Manim-space
+ *  rotation (counter-clockwise-positive). The stage y-axis points down while
+ *  Manim's points up, so an un-negated angle mirrors every rotated object
+ *  between the preview and the render (E2E audit, preview/export parity). */
+export function editorRotationToManim(deg) {
+  return -(Number(deg) || 0) * Math.PI / 180;
 }
 
 /** Common system fonts that do not require Google Fonts registration. */

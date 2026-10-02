@@ -10,6 +10,7 @@ import { getEasing, evaluateEasing } from './easing.js';
 import { generateShapePoints, pointsToFlat } from './geometry.js';
 import { resamplePoints, computeMorphState, lerp, interpolateColor } from './transform.js';
 import { blendClipResults, isClipActive, getClipProgress, isClipCompleted, applyOverrides } from './blending.js';
+import { propagateParentTransforms } from './hierarchy.js';
 
 /**
  * @typedef {Object} FrameState
@@ -156,7 +157,20 @@ export class PlaybackEngine {
 
   /**
    * Compute the full frame state at a given time.
-   * 
+   *
+   * Canonical timeline contract (E2E audit):
+   *   - an object is ON SCREEN only inside [enterTime, enterTime+duration)
+     *     — before it enters and after it exits it is hidden, exactly like
+     *     the exported video (previously the preview rendered everything at
+     *     all times, so the canvas never matched the render)
+   *   - `visible: false` objects are always hidden (mirrored by the codegen,
+     *     which never emits them)
+   *   - clips that FINISHED hold their final value (a move clip is a
+     *     permanent state change in the export — the preview used to snap
+     *     objects back to their base position after the clip ended)
+   *   - parent deltas propagate to descendants (hierarchy.js) the same way
+     *     the exporter's family VGroups animate
+   *
    * @param {number} time - Current time in seconds
    * @param {Array} tracks - Track array with clips
    * @param {Array} objects - Object array
@@ -184,8 +198,20 @@ export class PlaybackEngine {
 
     const frame = blendClipResults(evaluatedClips, objectMap);
 
-    // Apply entrance/exit animations on top
+    // Timeline window + visibility contract: hide objects outside their
+    // [enter, exit) window or flagged invisible (parity with the exporter).
+    for (const obj of objects) {
+      if (obj.visible === false) { frame.hiddenIds.add(obj.id); continue; }
+      const enter = obj.enterTime || 0;
+      const exit = enter + (obj.duration ?? 999);
+      if (time < enter || time >= exit) frame.hiddenIds.add(obj.id);
+    }
+
+    // Apply entrance/exit animations on top (in-window objects only)
     this._applyEnterExitAnims(frame, time, objects);
+
+    // Parent transforms propagate to children (canonical hierarchy)
+    propagateParentTransforms(frame, objects);
 
     return frame;
   }
@@ -351,6 +377,9 @@ export class PlaybackEngine {
 
   /**
    * Evaluate a single clip at the given time.
+   * A COMPLETED clip holds its final value (progress = 1): in the export a
+   * move/scale/fade/rotate clip permanently changes the object, so the
+   * preview must not snap back to the base state after the clip ends.
    */
   _evaluateClip(clip, time, objectMap) {
     const active = isClipActive(clip, time);
@@ -360,8 +389,8 @@ export class PlaybackEngine {
       return this._evaluateTransformClip(clip, time, active, completed, objectMap);
     }
 
-    if (!active) return null;
-    const progress = getClipProgress(clip, time);
+    if (!active && !completed) return null;               // before start: no effect
+    const progress = completed ? 1 : getClipProgress(clip, time);
     const easedT = evaluateEasing(progress, clip.easing || 'ease_in_out', clip.overshoot || 0, clip.settle || 1.0);
 
     const sourceObj = objectMap.get(clip.sourceId);

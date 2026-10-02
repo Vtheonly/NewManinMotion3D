@@ -389,11 +389,17 @@ export default {
 
   watch: {
     'store.project.objects': {
-      handler() { if (!this.isCodeMode && this.stageViewMode === 'code' && !this.codeEdited && store.project.sourceMode !== 'code') this._debouncedUpdateCode(); },
+      handler() {
+        if (!this.isCodeMode && this.stageViewMode === 'code' && !this.codeEdited && store.project.sourceMode !== 'code') this._debouncedUpdateCode();
+        this.recomputePausedFrame();
+      },
       deep: true
     },
     'store.project.tracks': {
-      handler() { if (!this.isCodeMode && this.stageViewMode === 'code' && !this.codeEdited && store.project.sourceMode !== 'code') this._debouncedUpdateCode(); },
+      handler() {
+        if (!this.isCodeMode && this.stageViewMode === 'code' && !this.codeEdited && store.project.sourceMode !== 'code') this._debouncedUpdateCode();
+        this.recomputePausedFrame();
+      },
       deep: true
     },
     // Re-boot the Suprepto editor whenever the project is swapped in
@@ -439,6 +445,19 @@ export default {
   },
 
   methods: {
+    /**
+     * While paused, edits (move/resize/property changes/visibility/enter-time)
+     * must immediately be reflected in the frame state — the canvas shows the
+     * scene AT THE PLAYHEAD, and the playhead semantics include the object
+     * time windows (E2E audit: preview parity with the export).
+     */
+    recomputePausedFrame() {
+      if (store.playbackPlaying) return;
+      if (store.project.editorMode !== 'visual') return;
+      const engine = getPlaybackEngine();
+      engine.seekTo(store.playbackTime || 0, store.project.tracks, store.project.objects);
+    },
+
     handleKeydown(e) {
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
 

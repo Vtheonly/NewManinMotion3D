@@ -15,6 +15,14 @@ import api from '../api.js';
 import { store as sciStore } from '../sci/store.js';
 import { toDict as sciToDict } from '../sci/document.js';
 
+/** Object types whose Manim mobject is 3D (kept in sync with the compiler
+ *  object registry OBJECT_DIMENSIONALITY — E2E audit). */
+export const OBJECT_3D_TYPES = ['cube', 'sphere', 'cone', 'cylinder'];
+
+export function is3dObjectType(type) {
+  return OBJECT_3D_TYPES.includes(type);
+}
+
 /** Carry the edited sci-ir/1 document into the project (issue #29). */
 function syncSciDocument() {
   if (store.project.editorMode !== 'scientific') return null;
@@ -105,6 +113,10 @@ export function getSceneTypeMeta(key) {
  * In-place migration of older project JSON to the v3 schema (Issue #1).
  * Adds sceneType / scene / camera defaults when missing; keeps every
  * existing field untouched. Used by importJSON and loadFromServer.
+ *
+ * E2E audit additions: repairs broken parent/child graphs (dangling or
+ * cyclic parentId references are dropped, never crash the editor) and
+ * normalizes `visible`/`z` on objects that predate those properties.
  */
 function migrateProjectSchema(project) {
   if (!project.sceneType) project.sceneType = 'scene_2d';
@@ -125,7 +137,63 @@ function migrateProjectSchema(project) {
       if (!meta.cameraFields.includes(k)) delete project.camera[k];
     }
   }
+  sanitizeHierarchy(project);
   return project;
+}
+
+/** Repair a parent/child graph in place: dangling parentIds are cleared and
+ *  cycles are broken (the deepest edge wins). Purely defensive — the editor
+ *  actions never create these states, but imported/hand-edited JSON can. */
+function sanitizeHierarchy(project) {
+  if (!Array.isArray(project.objects)) return;
+  const byId = new Map(project.objects.map(o => [o.id, o]));
+  for (const obj of project.objects) {
+    if (obj.visible === undefined) obj.visible = true;
+    if (obj.parentId != null && !byId.has(obj.parentId)) {
+      obj.parentId = null;                 // dangling reference
+    }
+  }
+  // Cycle break: walk up from each object with a visited set; a repeat edge
+  // means a cycle — cut it there.
+  for (const obj of project.objects) {
+    const seen = new Set();
+    let cur = obj;
+    while (cur && cur.parentId != null) {
+      if (seen.has(cur.parentId)) { cur.parentId = null; break; }
+      seen.add(cur.id);
+      cur = byId.get(cur.parentId);
+      if (!cur) break;
+    }
+  }
+  // Groups: drop childIds that reference neither an object nor a group;
+  // break group nesting cycles the same way.
+  if (Array.isArray(project.groups)) {
+    const groupIds = new Set(project.groups.map(g => g.id));
+    const objectIds = new Set(project.objects.map(o => o.id));
+    for (const g of project.groups) {
+      g.childIds = (g.childIds || []).filter(cid => objectIds.has(cid) || groupIds.has(cid));
+    }
+    for (const g of project.groups) {
+      const seen = new Set();
+      const stack = [g.id];
+      while (stack.length) {
+        const id = stack.pop();
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const grp = project.groups.find(x => x.id === id);
+        if (!grp) continue;
+        for (const cid of grp.childIds || []) {
+          if (groupIds.has(cid)) {
+            if (seen.has(cid)) {
+              grp.childIds = grp.childIds.filter(x => x !== cid); // cycle edge
+            } else {
+              stack.push(cid);
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 // ─── Reactive Store ──────────────────────────────────────────────────────────
@@ -256,7 +324,11 @@ export const SHAPE_DEFAULTS = {
   image:    { width: 200, height: 200, fill: 'transparent', stroke: 'transparent', strokeWidth: 0 },
   svg_asset:{ width: 200, height: 200, fill: 'transparent', stroke: 'transparent', strokeWidth: 0 },
   latex:    { width: 200, height: 80,  fill: '#ffffff', stroke: 'transparent', strokeWidth: 0 },
-  axes:     { width: 400, height: 300, fill: '#ffffff', stroke: '#ffffff', strokeWidth: 2 }
+  axes:     { width: 400, height: 300, fill: '#ffffff', stroke: '#ffffff', strokeWidth: 2 },
+  cube:     { width: 140, height: 140, fill: '#f97316', stroke: '#ffffff', strokeWidth: 2 },
+  sphere:   { width: 160, height: 160, fill: '#38bdf8', stroke: '#ffffff', strokeWidth: 2 },
+  cone:     { width: 140, height: 180, fill: '#a78bfa', stroke: '#ffffff', strokeWidth: 2 },
+  cylinder: { width: 140, height: 180, fill: '#34d399', stroke: '#ffffff', strokeWidth: 2 }
 };
 
 export const SHAPE_COLORS = {
@@ -265,7 +337,8 @@ export const SHAPE_COLORS = {
   line: '#94a3b8', arrow: '#ef4444',
   heart: '#ec4899', dot: '#94a3b8', dot_grid: '#a855f7',
   text: '#f472b6', image: '#f59e0b', svg_asset: '#f59e0b',
-  latex: '#a855f7', axes: '#10b981'
+  latex: '#a855f7', axes: '#10b981',
+  cube: '#f97316', sphere: '#38bdf8', cone: '#a78bfa', cylinder: '#34d399'
 };
 
 // ─── Getters ─────────────────────────────────────────────────────────────────
@@ -297,6 +370,36 @@ export const getters = {
   },
   objectGroup(objId) {
     return (store.project.groups || []).find(g => g.childIds && g.childIds.includes(objId)) || null;
+  },
+  objectChildren(objId) {
+    return store.project.objects.filter(o => o.parentId === objId);
+  },
+  objectRoots() {
+    return store.project.objects.filter(o => !o.parentId);
+  },
+  /** All descendants of an object (deep), in stable document order. */
+  descendantsOf(objId) {
+    const out = [];
+    const walk = (pid) => {
+      for (const o of store.project.objects) {
+        if (o.parentId === pid) { out.push(o); walk(o.id); }
+      }
+    };
+    walk(objId);
+    return out;
+  },
+  /** Whether making child→parent would create a cycle. */
+  wouldCreateCycle(childId, parentId) {
+    if (childId === parentId) return true;
+    const objects = store.project.objects;
+    let cur = objects.find(o => o.id === parentId);
+    const seen = new Set();
+    while (cur && cur.parentId != null && !seen.has(cur.id)) {
+      if (cur.parentId === childId) return true;
+      seen.add(cur.id);
+      cur = objects.find(o => o.id === cur.parentId);
+    }
+    return false;
   },
   computedDuration() {
     let maxEnd = 5;
@@ -341,16 +444,12 @@ export const actions = {
       ? { x, y }
       : nextPosition(stage.width, stage.height);
 
-    const lastEnd = store.project.objects.reduce((max, o) => {
-      const end = (o.enterTime || 0) + (o.duration || 5);
-      return end > max ? end : max;
-    }, 0);
-
     const nameMap = {
       dot_grid: 'Dot Grid', svg_asset: 'SVG', rectangle: 'Rectangle',
       ellipse: 'Ellipse', triangle: 'Triangle', star: 'Star',
       polygon: 'Polygon', line: 'Line', arrow: 'Arrow', text: 'Text',
-      latex: 'LaTeX', axes: 'Axes'
+      latex: 'LaTeX', axes: 'Axes', cube: 'Cube', sphere: 'Sphere',
+      cone: 'Cone', cylinder: 'Cylinder'
     };
     const displayName = nameMap[type] || (type.charAt(0).toUpperCase() + type.slice(1));
 
@@ -369,7 +468,11 @@ export const actions = {
       opacity: 1,
       zOrder: store.project.objects.length,
       visible: true,
-      enterTime: store.project.objects.length === 0 ? 0 : Math.round(lastEnd * 10) / 10,
+      parentId: null,          // canonical parent/child hierarchy (E2E audit)
+      // New objects enter AT THE PLAYHEAD (video-editor convention) so the
+      // canvas — which renders the scene at the playhead time — shows what
+      // you just added; stagger timing by dragging the timeline row.
+      enterTime: Math.round((store.playbackTime || 0) * 10) / 10,
       duration: 3,
       enterAnim: 'fade_in',
       exitAnim: 'fade_out',
@@ -381,8 +484,16 @@ export const actions = {
       ...(type === 'star' ? { starArms: 5, innerRatio: 0.4 } : {}),
       ...(type === 'latex' ? { latex: 'E = mc^2' } : {}),
       ...(type === 'axes' ? { xRange: [-5, 5, 1], yRange: [-3, 3, 1] } : {}),
+      ...(is3dObjectType(type) ? { z: 0, ...(type === 'sphere' || type === 'cylinder' ? { resolution: 24 } : {}) } : {}),
       ...extraProps
     };
+
+    // Adding a 3D object into a 2D scene switches the scene type so the
+    // render uses the orbitable ThreeDScene camera (one canonical scene;
+    // the user can switch back explicitly in the panel).
+    if (is3dObjectType(type) && store.project.sceneType === 'scene_2d') {
+      actions.updateSceneConfig({ sceneType: 'three_d' });
+    }
 
     store.project.objects.push(obj);
     store.isDirty = true;
@@ -425,6 +536,11 @@ export const actions = {
     store.project.objects.splice(idx, 1);
     const selIdx = store.selectedObjectIds.indexOf(id);
     if (selIdx !== -1) store.selectedObjectIds.splice(selIdx, 1);
+    // Children survive a deleted parent (orphaned, parentId cleared) — each
+    // object owns its own timeline window; deleting a subtree is explicit.
+    for (const o of store.project.objects) {
+      if (o.parentId === id) o.parentId = null;
+    }
     for (const track of store.project.tracks) {
       track.clips = track.clips.filter(c => c.sourceId !== id && c.targetId !== id);
     }
@@ -442,6 +558,69 @@ export const actions = {
   },
 
   // ══════════════════════════════════════════════════════════════════════════
+  // Parent / child hierarchy (E2E audit — frontend-editable canonical graph)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Attach `childId` to `parentId` (or detach with null). Rejects cycles and
+   * self-parenting; a child reparented out of a group keeps its parentId —
+   * groups and parent/child are independent organizational structures.
+   * Returns true when the graph changed.
+   */
+  setParent(childId, parentId) {
+    const child = store.project.objects.find(o => o.id === childId);
+    if (!child) return false;
+    if (parentId == null) {
+      if (child.parentId == null) return false;
+      Vue.set(child, 'parentId', null);
+      store.isDirty = true;
+      actions.commitState();
+      return true;
+    }
+    if (parentId === childId) {
+      actions.setError('An object cannot be its own parent');
+      return false;
+    }
+    if (!store.project.objects.some(o => o.id === parentId)) {
+      actions.setError('Parent object not found');
+      return false;
+    }
+    if (getters.wouldCreateCycle(childId, parentId)) {
+      actions.setError('That would create a parent/child cycle');
+      return false;
+    }
+    Vue.set(child, 'parentId', parentId);
+    store.isDirty = true;
+    actions.commitState();
+    return true;
+  },
+
+  /** Duplicate an object — with its whole subtree when it has children
+   *  (parented children follow the parent; ids are remapped, clips are not
+   *  copied, zOrder stacks on top). */
+  duplicateObject(id) {
+    const source = store.project.objects.find(o => o.id === id);
+    if (!source) return null;
+    const subtree = [source, ...getters.descendantsOf(id)];
+    const idMap = new Map();
+    for (const o of subtree) idMap.set(o.id, uid('obj'));
+    const clones = subtree.map((o, i) => {
+      const clone = JSON.parse(JSON.stringify(o));
+      clone.id = idMap.get(o.id);
+      clone.name = (i === 0 ? o.name : o.name) + ' copy';
+      clone.x = (o.x || 0) + 24;
+      clone.y = (o.y || 0) + 24;
+      clone.zOrder = store.project.objects.length + i;
+      if (o.parentId != null) clone.parentId = idMap.get(o.parentId) || null;
+      return clone;
+    });
+    store.project.objects.push(...clones);
+    store.isDirty = true;
+    actions.commitState();
+    return clones[0];
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
   // Groups
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -450,9 +629,34 @@ export const actions = {
       actions.setError('Select at least 2 objects to group');
       return null;
     }
-    // Remove these objects from existing groups
+    const objectIds = new Set(store.project.objects.map(o => o.id));
+    const groupIds = new Set((store.project.groups || []).map(g => g.id));
+    const valid = ids.filter(id => objectIds.has(id) || groupIds.has(id));
+    if (valid.length < 2) {
+      actions.setError('Select at least 2 objects to group');
+      return null;
+    }
+    // Nesting guard: a group cannot contain itself transitively. Adding any
+    // of `valid`'s descendant groups would close a cycle.
+    const descendants = new Set();
+    const collect = (gid) => {
+      for (const g of (store.project.groups || [])) {
+        if (g.id === gid) {
+          for (const cid of g.childIds || []) {
+            if (groupIds.has(cid) && !descendants.has(cid)) { descendants.add(cid); collect(cid); }
+          }
+        }
+      }
+    };
+    for (const id of valid) if (groupIds.has(id)) collect(id);
+    const members = valid.filter(id => !descendants.has(id) && id !== undefined);
+    if (members.length < 2) {
+      actions.setError('That grouping would nest a group inside itself');
+      return null;
+    }
+    // Remove member objects from existing groups (re-grouping moves them)
     for (const group of (store.project.groups || [])) {
-      group.childIds = (group.childIds || []).filter(cid => !ids.includes(cid));
+      group.childIds = (group.childIds || []).filter(cid => !objectIds.has(cid) || !members.includes(cid));
     }
     // Clean empty groups
     if (!store.project.groups) Vue.set(store.project, 'groups', []);
@@ -461,7 +665,7 @@ export const actions = {
     const group = {
       id: uid('group'),
       name: `Group ${(store.project.groups || []).length + 1}`,
-      childIds: [...ids],
+      childIds: [...members],
       margin: 10,
       collapsed: false
     };
@@ -587,6 +791,34 @@ export const actions = {
     store.isDirty = true;
     actions.commitState();
     return clip;
+  },
+
+  /**
+   * Move a clip to a different track (frontend-editable track assignment —
+   * blending rule: the higher track wins per-property conflicts).
+   * Returns the new track index, or -1 when the clip was not found.
+   */
+  moveClip(clipId, trackIndex) {
+    if (!Number.isInteger(trackIndex) || trackIndex < 0) return -1;
+    for (let i = 0; i < store.project.tracks.length; i++) {
+      const track = store.project.tracks[i];
+      const idx = track.clips.findIndex(c => c.id === clipId);
+      if (idx !== -1) {
+        if (i === trackIndex) return i;
+        const [clip] = track.clips.splice(idx, 1);
+        actions.addClip(trackIndex, clip);   // addClip commits the history entry
+        return trackIndex;
+      }
+    }
+    return -1;
+  },
+
+  /** Index of the track containing a clip (-1 when absent). */
+  trackIndexOfClip(clipId) {
+    for (let i = 0; i < store.project.tracks.length; i++) {
+      if (store.project.tracks[i].clips.some(c => c.id === clipId)) return i;
+    }
+    return -1;
   },
 
   updateClip(clipId, updates) {
@@ -1181,13 +1413,21 @@ export const actions = {
   pasteSelection() {
     if (store.clipboard.length === 0) return;
     const newIds = [];
+    const idMap = new Map();   // original id -> pasted id (parentId remap)
+    for (const original of store.clipboard) idMap.set(original.id, uid('obj'));
     for (const original of store.clipboard) {
       const clone = JSON.parse(JSON.stringify(original));
-      clone.id = uid('obj');
+      clone.id = idMap.get(original.id);
       clone.x = (clone.x || 0) + 20;
       clone.y = (clone.y || 0) + 20;
       clone.name = clone.name + ' copy';
       clone.zOrder = store.project.objects.length;
+      // Keep parent/child pairs pasted together; a parent left behind in the
+      // scene is NOT re-referenced (the clone would jump with someone else's
+      // transform) — the clone starts detached.
+      clone.parentId = (original.parentId != null && idMap.has(original.parentId))
+        ? idMap.get(original.parentId)
+        : null;
       store.project.objects.push(clone);
       newIds.push(clone.id);
     }
