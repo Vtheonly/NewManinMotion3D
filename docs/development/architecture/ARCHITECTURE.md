@@ -44,7 +44,8 @@ data-driven registries.
 | `index.js` | Pipeline orchestration (validate → normalize → resolve scene → codegen); public API | Contain type-specific logic |
 | `validator.js` | Zod schema v3 (`sceneType`, `scene`, `camera`) + registry-driven type/animation checks | Hardcode capability lists |
 | `normalizer.js` | Defaults, clamps, scene/camera normalization, `_resolvedScene` metadata | Mutate semantic content |
-| `codegen.js` | Scene assembly: header → prologue → objects → groups → animation steps | Know any concrete object/animation/scene type |
+| `codegen.js` | Scene assembly: header → prologue → objects → groups → animation steps (same-time steps batched into one parallel play — issue #36) | Know any concrete object/animation/scene type |
+| `legacyCompat.js` | Documented, idempotent, reported shims for removed Manim APIs, applied to the rendered scene.py copy only (issue #36) | Modify the project's codeSource; fix source logic bugs |
 | `sceneDetect.js` | Regex-based scene class detection in Python source (no execution) | Execute or import Python |
 | `registry/index.js` | Generic registry factory + shared `registries` hub + capability snapshot | Accept duplicate registrations |
 | `registry/objects.js` | Built-in object type registrations (17 types) | Touch scene assembly |
@@ -197,3 +198,13 @@ Iteration 001** and tracked in the task registry:
 - `MovingCameraScene` frame animation clips (`self.camera.frame.animate...`) — #6
 - Additional scene bases (VectorScene, ZoomedScene) as first-class frontend
   choices — the registry accepts them; the UI exposes the four core types
+
+## 8. Canonical render-source contract (issue #36)
+
+Every project has ONE canonical scene; the editor preview and the video
+exporter both consume it. The tolerant legacy import projects hand-written
+code onto the visual model as a **non-destructive scaffold** — the original
+source stays the render source whenever the import lost anything. Routing is
+enforced client- and server-side; a documented compat boundary keeps legacy
+Manim APIs renderable. Full contract, importer rules and timeline semantics:
+**[RENDER-SOURCE.md](RENDER-SOURCE.md)**.

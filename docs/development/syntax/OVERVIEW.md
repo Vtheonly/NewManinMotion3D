@@ -91,3 +91,20 @@ if __name__ == "__main__":
 ```
 
 Run it: `python -m scientific.run hello.py HelloScience --quality low`.
+
+## The render-source contract (issue #36)
+
+One canonical scene per project — the preview and the exported video are two
+renderings of it:
+
+- **Visual projects** — the object/track model is canonical; the compiler
+  codegen renders it (same-time timeline steps batch into one parallel play).
+- **Code projects (and imported legacy scenes)** — `codeSource` is canonical
+  and renders verbatim; importing code into the visual editor creates a
+  non-destructive, coverage-reported scaffold, never the default render
+  source. Legacy Manim APIs are handled by a documented, reported compat
+  boundary applied to the render copy only.
+- **Scientific projects** — the sci-ir/1 document is canonical; the
+  deterministic Python export renders it.
+
+Full contract: `architecture/RENDER-SOURCE.md`.

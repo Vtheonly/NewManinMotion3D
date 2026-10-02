@@ -7,6 +7,8 @@
   Build mathematical animations by dragging shapes, writing LaTeX, creating morphs, and rendering cinematic videos -- all from your browser.  
   Or switch to **Code-Only mode** and write raw Manim Python with full library access.
 
+**v1.3.1:** **One canonical scene per project** (issue #36): the editor preview and the exported video are two renderings of the same source of truth. Imported hand-written Manim is preserved verbatim as the render source (the visual model becomes a non-destructive, coverage-reported editing scaffold); legacy Manim APIs render through a documented compat boundary; the exporter batches same-time timeline steps into parallel plays so the video duration matches the editor. Contract: [docs/development/architecture/RENDER-SOURCE.md](docs/development/architecture/RENDER-SOURCE.md).
+
 **v1.3.0:** A canonical **scientific scene runtime** (`sci-ir/1`) now powers Code-Only mode: author scenes through a typed Python API (proteins, MLPs, torus flows, PoE chains, attention, formulas with live values), export/import them losslessly, and render them through the same pipeline as the editor. See [docs/development/syntax/OVERVIEW.md](docs/development/syntax/OVERVIEW.md).
 
 **Suprepto:** the syntax grew a reactive state engine (keyframe/data-driven symbols, derived values), state machines, comparisons with real computed deltas, composable highlights and live annotations, a registry of 35 object types, the web **Scientific (IR)** editor mode with per-object timeline rows, end-to-end render verification (double-render frame hashing) and runtime diagnostics. The complete guide: [docs/development/syntax/SUPREPTO.md](docs/development/syntax/SUPREPTO.md).
@@ -363,6 +365,15 @@ For detailed technical docs of the entire codebase, see **[XTRA-BIG-README.md](X
 ---
 
 ## Changelog
+
+### v1.3.1
+
+- **Video render architecture (issue #36):** the exported video is now a rendering of the **same canonical scene** the editor holds — the root cause of the broken video output (white screen, placeholder "Text", dead air) was a second, lossy scene representation silently becoming the render source
+- **Render-source contract:** `project.sourceMode` (canvas/code); imported hand-written Manim is preserved verbatim as the render source; the visual model becomes a non-destructive, coverage-reported editing scaffold (`dropped` / `approximated` / `complete`); explicit, warned detach; routing enforced in both the web client and the API
+- **Legacy Manim API compat boundary:** documented, idempotent, reported shims (camera_frame alias, 2D point padding, move_to runtime pad, Wiggle rotation_angle) applied only to the rendered scene.py copy — old scenes render on current Manim CE instead of erroring
+- **Exporter timeline fidelity:** same-time steps batch into ONE parallel `self.play` with per-animation `run_time` (exported duration now matches the editor timeline; instant adds are zero-duration)
+- **No placeholder "Text"** can appear in any render unless genuinely typed
+- **Tests:** +35 web, +16 API; scientific suite 169/169 including real Manim execution; E2E verified the legacy Synthesizability Wall renders its 90 authored animations
 
 ### v1.3.0
 

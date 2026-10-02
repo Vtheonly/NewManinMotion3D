@@ -64,7 +64,7 @@
 | B-20 | Problem registry (P-001…P-010 discoveries) | ✅ | 032-001 | `problems/PROBLEM-REGISTRY.md` |
 | B-21 | Renderer image ships the runtime (context root + .dockerignore) | ✅ | 032-001 | PYTHONPATH + SCIENTIFIC_DATA_ROOT |
 | B-22 | Frontend IR authoring UI (generic inspector/editor over /api/ir/schema) | ⬜ | — | #29 / #15 (contract delivered by B-12/B-13) |
-| B-23 | Import of arbitrary hand-authored Python → semantic IR (beyond canonical exports) | ⬜ | — | #29; custom boundary documented meanwhile |
+| B-23 | Import of arbitrary hand-authored Python → semantic IR (beyond canonical imports) | 🔶 | 036-001 | coverage-reported scaffold import ships (#36); semantic IR conversion still open (#29) |
 | B-24 | Code-mode scene picker for multi-scene files | ⬜ | — | #15 |
 | B-25 | Uploaded-asset DataRef binding in the editor | ⬜ | — | #23 DataBridge |
 | B-26 | Legacy >150-line service files (worker.py, routes, web components) | ⬜ | — | #16/#15/#25; P-008 |
@@ -114,3 +114,19 @@
 - **2026-10-01 — Iteration 001** (Issue #1): registry foundation, scene types,
   scene detection, schema v3, bounded frontend integration, 65 new tests,
   architecture docs. Deferred: A-20…A-24 (tracked to #6/#15/#16).
+
+
+## Video render architecture (Issue #36)
+
+| ID | Task | Status | Iter | Notes |
+|----|------|:-----:|:----:|-------|
+| V-01 | Canonical render-source contract (`sourceMode` code/canvas; migration) | ✅ | 036-001 | RENDER-SOURCE.md; client + API routing |
+| V-02 | Server-side enforcement: `/render` renders `codeSource` for code-sourced projects | ✅ | 036-001 | real-HTTP tested with fake RESP redis |
+| V-03 | Importer coverage report (dropped / approximated / complete) + per-object approx flags | ✅ | 036-001 | no silent drops; no 'Text' placeholder content |
+| V-04 | Preserve original code on import; honest summary; warned detach action | ✅ | 036-001 | adoptImportedCode / detachFromSource + UI |
+| V-05 | Legacy Manim API compat boundary (4 rules, reported + idempotent) | ✅ | 036-001 | camera_frame, 2D points, move_to pad, wiggle kwarg |
+| V-06 | Exporter timeline fidelity: same-time steps batch into one parallel play | ✅ | 036-002 | per-animation run_time; zero-duration adds |
+| V-07 | No placeholder 'Text' in any render (server + client safeText) | ✅ | 036-002 | empty renders empty |
+| V-08 | E2E render verification of the legacy scene from source | ✅ | 036-001 | 90 animations, 49s, visually verified |
+| V-09 | Visual approximation badge per object in canvas/timeline UI | ⬜ | — | approx flags exist; per-object badges pending #15 |
+| V-10 | Semantic IR import for arbitrary Python (fold into #29) | ⬜ | — | see B-23 |

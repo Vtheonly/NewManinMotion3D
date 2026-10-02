@@ -54,3 +54,9 @@
 - The frontend must not invent scene semantics the server doesn't register.
 - The renderer must never execute user code for detection (`ast` only).
 - One concept, one registration — duplicates throw by design.
+- One project, one canonical scene: never introduce a second scene
+  representation that feeds the render pipeline (RENDER-SOURCE.md). Imports
+  project onto the visual model — they never become the default render
+  source, and the original code is always preserved.
+- Extend `legacyCompat.js` only with a matching test + RENDER-SOURCE.md
+  table entry; never use it to fix source logic bugs.
