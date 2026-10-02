@@ -15,7 +15,7 @@
       </Section>
 
       <!-- Position & Size (type-aware: match what preview actually renders) -->
-      <Section label="Position & Size">
+      <Section v-if="!is3d" label="Position & Size">
         <div class="grid grid-cols-2 gap-1.5">
           <Num label="X" :value="obj.x" @input="u('x', $event)" />
           <Num label="Y" :value="obj.y" @input="u('y', $event)" />
@@ -55,7 +55,7 @@
       </Section>
 
       <!-- Rotation -->
-      <Section label="Rotation">
+      <Section v-if="!is3d" label="Rotation">
         <div class="flex items-center gap-2">
           <input class="input input-sm flex-1" type="number" :value="obj.rotation || 0" @change="u('rotation', Number($event.target.value))" />
           <span class="text-[10px] text-studio-text-muted">deg</span>
@@ -170,18 +170,41 @@
         </div>
       </Section>
 
-      <!-- 3D properties -->
-      <Section v-if="is3d" label="3D Properties">
-        <div class="grid grid-cols-2 gap-1.5">
-          <Num v-if="obj.type === 'cube'" label="Size" :value="effective3dSize" :min="1" class="col-span-2" @input="u3dSize($event)" />
-          <template v-else>
-            <Num label="Width" :value="obj.width" :min="1" @input="u('width', $event)" />
-            <Num label="Height" :value="obj.height" :min="1" @input="u('height', $event)" />
-          </template>
-          <Num label="Z (depth pos)" :value="obj.z ?? 0" :step="10" @input="u('z', $event)" />
-          <Num v-if="obj.type === 'sphere' || obj.type === 'cylinder'" label="Resolution" :value="obj.resolution ?? 24" :min="8" :max="48" @input="u('resolution', $event)" />
+      <!-- 3D properties — full frontend editing (issue #42): every 3D
+           transform the render honors is editable here and drives the
+           interactive 3D viewport live. -->
+      <Section v-if="is3d" label="3D Position">
+        <div class="grid grid-cols-3 gap-1.5">
+          <Num label="X" :value="obj.x" :step="10" @input="u('x', $event)" />
+          <Num label="Y" :value="obj.y" :step="10" @input="u('y', $event)" />
+          <Num label="Z (depth)" :value="obj.z ?? 0" :step="10" @input="u('z', $event)" />
         </div>
-        <p class="text-[8px] text-studio-text-muted/40 mt-1 leading-snug">Z moves the object toward/away from the 3D camera (stage pixels). The render applies the real 3D camera; the canvas shows the layout projection.</p>
+        <p class="text-[8px] text-studio-text-muted/40 mt-1 leading-snug">Z moves the object toward/away from the 3D camera (stage pixels). The 3D tab shows the true camera view.</p>
+      </Section>
+
+      <Section v-if="is3d" label="3D Size">
+        <div class="grid grid-cols-3 gap-1.5">
+          <Num label="Width" :value="obj.width" :min="1" @input="u('width', $event)" />
+          <Num label="Height" :value="obj.height" :min="1" @input="u('height', $event)" />
+          <Num v-if="obj.type === 'cube'" label="Depth" :value="obj.depth ?? obj.width" :min="1" @input="u('depth', $event)" />
+          <Num v-else label="—" :value="obj.width" disabled />
+        </div>
+        <div v-if="obj.type === 'sphere' || obj.type === 'cylinder'" class="grid grid-cols-2 gap-1.5 mt-1.5">
+          <Num label="Resolution" :value="obj.resolution ?? 24" :min="8" :max="48" @input="u('resolution', $event)" />
+        </div>
+      </Section>
+
+      <Section v-if="is3d" label="3D Rotation (deg)">
+        <div class="grid grid-cols-3 gap-1.5">
+          <Num label="X" :value="obj.rotationX || 0" :step="5" @input="u('rotationX', $event)" />
+          <Num label="Y" :value="obj.rotationY || 0" :step="5" @input="u('rotationY', $event)" />
+          <Num label="Z" :value="obj.rotation || 0" :step="5" @input="u('rotation', $event)" />
+        </div>
+        <div class="flex gap-1 mt-1.5">
+          <button class="mini-btn" @click="resetRot" title="Reset all rotations to 0">Reset</button>
+          <button class="mini-btn" v-if="(obj.rotationX||0) !== -90" @click="upright" title="Stand the object upright (rotationX = -90°)">Upright</button>
+        </div>
+        <p class="text-[8px] text-studio-text-muted/40 mt-1 leading-snug">X/Y rotate around the horizontal/vertical axes; Z spins in the screen plane. Identical to the gizmo in the 3D tab.</p>
       </Section>
 
       <!-- Dot Grid -->
@@ -619,10 +642,6 @@ export default {
     is3d() {
       return this.obj && ['cube', 'sphere', 'cone', 'cylinder'].includes(this.obj.type);
     },
-    effective3dSize() {
-      if (!this.obj) return 0;
-      return Math.min(this.obj.width || 0, this.obj.height || 0) || 1;
-    },
     clipTracks() { return store.project.tracks; },
     clipTrackIndex() {
       if (!this.clip) return 0;
@@ -663,9 +682,13 @@ export default {
       if (!this.obj) return;
       actions.setParent(this.obj.id, parentId === '' ? null : parentId);
     },
-    u3dSize(v) {
+    resetRot() {
       if (!this.obj) return;
-      actions.updateObject(this.obj.id, { width: v, height: v });
+      actions.updateObject(this.obj.id, { rotationX: 0, rotationY: 0, rotation: 0 });
+    },
+    upright() {
+      if (!this.obj) return;
+      actions.updateObject(this.obj.id, { rotationX: -90 });
     },
     moveClipTrack(val) {
       if (!this.clip) return;
@@ -733,6 +756,11 @@ export default {
   background: var(--studio-accent);
   border-color: var(--studio-accent);
   color: var(--studio-text);
+}
+
+.mini-btn {
+  @apply px-2 py-1 rounded-md border border-studio-border text-[9px] text-studio-text-muted;
+  @apply hover:text-studio-text hover:bg-studio-border/50 transition-all;
 }
 
 .align-btn {

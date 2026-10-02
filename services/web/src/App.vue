@@ -23,6 +23,14 @@
             Canvas
           </button>
           <button
+            class="stage-tab-btn" :class="{ active: stageViewMode === 'three' }"
+            @click="stageViewMode = 'three'"
+            title="Interactive 3D viewport — orbit, transform gizmos, real 3D editing"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4.5v9L12 20l-8-4.5v-9L12 2z"/><path d="M12 2v9m0 0l8-4.5M12 11L4 6.5"/></svg>
+            3D
+          </button>
+          <button
             class="stage-tab-btn" :class="{ active: stageViewMode === 'code' }"
             @click="switchToCode"
           >
@@ -38,6 +46,10 @@
 
         <!-- Canvas view (hidden in code-only mode) -->
         <StageCanvas v-show="stageViewMode === 'canvas' && !isCodeMode" />
+
+        <!-- Interactive 3D viewport (issue #42): orbit camera, transform
+             gizmos, full 3D editing — same canonical scene, same frame -->
+        <Viewport3D v-show="stageViewMode === 'three' && !isCodeMode" />
 
         <!-- Code view -->
         <div v-show="stageViewMode === 'code' || isCodeMode" class="flex-1 flex flex-col overflow-hidden rounded-xl m-0" style="background: var(--studio-surface);">
@@ -308,6 +320,7 @@ import { generateManimScript, downloadManimScript, parseManimScript } from './ex
 import Topbar from './components/topbar/Topbar.vue';
 import AssetSidebar from './components/sidebar/AssetSidebar.vue';
 import StageCanvas from './components/stage/StageCanvas.vue';
+import Viewport3D from './components/stage/Viewport3D.vue';
 import PropertiesPanel from './components/inspector/PropertiesPanel.vue';
 import Timeline from './components/timeline/Timeline.vue';
 import SciEditor from './components/sci/SciEditor.vue';
@@ -315,7 +328,7 @@ import { enterScientificMode, syncSciToProject } from './sci/bridge.js';
 
 export default {
   name: 'App',
-  components: { Topbar, AssetSidebar, StageCanvas, PropertiesPanel, Timeline, SciEditor },
+  components: { Topbar, AssetSidebar, StageCanvas, Viewport3D, PropertiesPanel, Timeline, SciEditor },
 
   data() {
     return {
@@ -329,7 +342,7 @@ export default {
         { value: '4k',         label: '4K',         desc: '2160p 60fps (slowest)' }
       ],
       // Stage view toggle
-      stageViewMode: 'canvas',  // 'canvas' or 'code'
+      stageViewMode: 'canvas',  // 'canvas' | 'three' | 'code'
       stageCode: '# Add objects to see generated Manim code',
       stageCopied: false,
       codeEdited: false,
@@ -388,6 +401,11 @@ export default {
   },
 
   watch: {
+    // 3D object created → jump to the 3D viewport so editing starts where
+    // the object is genuinely manipulable (issue #42).
+    'store.view3dTick': function () {
+      if (!this.isCodeMode) this.stageViewMode = 'three';
+    },
     'store.project.objects': {
       handler() {
         if (!this.isCodeMode && this.stageViewMode === 'code' && !this.codeEdited && store.project.sourceMode !== 'code') this._debouncedUpdateCode();

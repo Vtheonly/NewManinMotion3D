@@ -55,7 +55,13 @@ export function normalizeProject(project) {
     y: obj.y ?? norm.stage.height / 2,
     width: Math.max(1, obj.width ?? 120),
     height: Math.max(1, obj.height ?? 120),
-    rotation: obj.rotation ?? 0,
+    rotation: num(obj.rotation) || 0,
+    // 3D canonical transforms (issue #42): per-axis rotations (deg) + depth.
+    // rotationX/Y rotate CCW around +x/+y in the render frame; `rotation`
+    // stays the editor Z (canvas-clockwise). depth sizes the cube along z.
+    rotationX: num(obj.rotationX) || 0,
+    rotationY: num(obj.rotationY) || 0,
+    depth: obj.depth != null ? Math.max(1, num(obj.depth) || 1) : undefined,
     opacity: clamp(obj.opacity ?? 1, 0, 1),
     enterTime: Math.max(0, obj.enterTime ?? 0),
     duration: Math.max(0.1, obj.duration ?? 3),
@@ -109,6 +115,11 @@ function describeSceneResolution(norm) {
 
 function clamp(v, min, max) {
   return Math.min(max, Math.max(min, v));
+}
+
+function num(v) {
+  const n = typeof v === 'number' ? v : parseFloat(v);
+  return Number.isFinite(n) ? n : 0;
 }
 
 export { normalizeProject as default };

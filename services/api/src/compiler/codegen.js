@@ -380,7 +380,21 @@ export function generatePythonCode(project, assetsPath) {
     const mp = stageToManim(obj.x, obj.y, sw, sh);
     const mz = is3d ? stageZToManim(obj.z, sh) : 0;
     L.push(indent + `${vn(obj.id)}.move_to([${mp.x.toFixed(3)}, ${mp.y.toFixed(3)}, ${mz.toFixed(3)}])`);
-    if (obj.rotation) L.push(indent + `${vn(obj.id)}.rotate(${editorRotationToManim(obj.rotation).toFixed(4)})`);
+    if (is3d) {
+      // Issue #42: full 3-axis orientation. Emission order Z → Y → X
+      // composes to Rx·Ry·Rz — the exact matrix of a Three.js Euler 'XYZ',
+      // so the 3D viewport gizmo orientation is what the video renders.
+      // (editor Z is canvas-clockwise → negated; X/Y are CCW around
+      // RIGHT/UP, matching Three rotation.x/y directly.)
+      const rx = (Number(obj.rotationX) || 0) * Math.PI / 180;
+      const ry = (Number(obj.rotationY) || 0) * Math.PI / 180;
+      const rz = editorRotationToManim(obj.rotation);
+      if (rz) L.push(indent + `${vn(obj.id)}.rotate(${rz.toFixed(4)}, axis=OUT)`);
+      if (ry) L.push(indent + `${vn(obj.id)}.rotate(${ry.toFixed(4)}, axis=UP)`);
+      if (rx) L.push(indent + `${vn(obj.id)}.rotate(${rx.toFixed(4)}, axis=RIGHT)`);
+    } else if (obj.rotation) {
+      L.push(indent + `${vn(obj.id)}.rotate(${editorRotationToManim(obj.rotation).toFixed(4)})`);
+    }
     L.push('');
   }
 

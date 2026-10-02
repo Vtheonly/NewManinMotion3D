@@ -84,7 +84,9 @@ A file with no renderable scene fails the job with an actionable error.
 | `store/project.js` | Project schema v3 (`sceneType`, `scene`, `camera`), `SCENE_TYPES` metadata, `migrateProjectSchema()`, `updateSceneConfig()` / `updateCamera()` actions |
 | `export/manim.js` | Client-side codegen parity: same class base + camera prologue as the server; `detectScenesClient()` mirror of server detection |
 | `components/topbar/Topbar.vue` | New Project dialog: scene type picker (2D / moving camera / 3D / custom) |
-| `components/inspector/PropertiesPanel.vue` | No-selection state: Scene section (type, class name, custom base) + Camera section (fields per scene type) |
+| `components/inspector/PropertiesPanel.vue` | No-selection state: Scene section (type, class name, custom base) + Camera section (fields per scene type); selected 3D objects: Position XYZ / Size W-H-D / Rotation XYZ sections (issue #42) |
+| `components/stage/Viewport3D.vue` | Interactive 3D viewport (three.js): orbit camera, raycast selection, move/rotate/scale gizmos writing the canonical store, playback-following meshes, Camera→Render bridge (issue #42) |
+| `engine/stage3d.js` | The stage↔world coordinate contract shared by the 3D viewport and the compiler (must mirror `registry/shared.js` + `solid3dSize`) |
 | `api.js` | `create()` passes `sceneType`; `renderCode()` omits `sceneName` (server auto-detects); `capabilities.get()` / `capabilities.detectScenes()` |
 
 Frontend/core boundary rule: the frontend never invents scene semantics. The

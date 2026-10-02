@@ -205,6 +205,10 @@ export const store = Vue.observable({
   selectedClipId: null,
   activeTool: 'select',
 
+  // Bumped when a 3D object is created — App.vue switches to the 3D
+  // viewport so editing continues where the object is manipulable (issue #42)
+  view3dTick: 0,
+
   // Playback
   playbackTime: 0,
   playbackPlaying: false,
@@ -484,15 +488,29 @@ export const actions = {
       ...(type === 'star' ? { starArms: 5, innerRatio: 0.4 } : {}),
       ...(type === 'latex' ? { latex: 'E = mc^2' } : {}),
       ...(type === 'axes' ? { xRange: [-5, 5, 1], yRange: [-3, 3, 1] } : {}),
-      ...(is3dObjectType(type) ? { z: 0, ...(type === 'sphere' || type === 'cylinder' ? { resolution: 24 } : {}) } : {}),
+      ...(is3dObjectType(type) ? {
+        z: 0,
+        // Full 3-axis canonical orientation (issue #42): rotationX/Y rotate
+        // CCW around +x/+y in the render frame; `rotation` = editor Z.
+        // Cone/cylinder primitives point +z (toward the camera) in Manim —
+        // default them upright so the vertical extent equals `height`.
+        rotationX: (type === 'cone' || type === 'cylinder') ? -90 : 0,
+        rotationY: 0,
+        ...(type === 'cube' ? { depth: d.width } : {}),
+        ...(type === 'sphere' || type === 'cylinder' ? { resolution: 24 } : {})
+      } : {}),
       ...extraProps
     };
 
     // Adding a 3D object into a 2D scene switches the scene type so the
     // render uses the orbitable ThreeDScene camera (one canonical scene;
     // the user can switch back explicitly in the panel).
-    if (is3dObjectType(type) && store.project.sceneType === 'scene_2d') {
-      actions.updateSceneConfig({ sceneType: 'three_d' });
+    if (is3dObjectType(type)) {
+      if (store.project.sceneType === 'scene_2d') {
+        actions.updateSceneConfig({ sceneType: 'three_d' });
+      }
+      // Auto-switch to the 3D viewport (App.vue watches the tick)
+      store.view3dTick = (store.view3dTick || 0) + 1;
     }
 
     store.project.objects.push(obj);
@@ -520,14 +538,24 @@ export const actions = {
     });
   },
 
-  updateObject(id, updates) {
+  /**
+   * Write properties into a canonical object.
+   * opts.commit (default true) records a history entry; the 3D gizmo
+   * streams live values with commit:false during a drag and commits the
+   * final state when the drag ends (issue #42).
+   */
+  updateObject(id, updates, opts = {}) {
     const obj = store.project.objects.find(o => o.id === id);
     if (!obj) return;
     for (const key of Object.keys(updates)) {
       Vue.set(obj, key, updates[key]);
     }
     store.isDirty = true;
-    actions._debouncedCommit();
+    if (opts.commit === false) {
+      actions._debouncedCommit();
+    } else {
+      actions.commitState();
+    }
   },
 
   deleteObject(id) {

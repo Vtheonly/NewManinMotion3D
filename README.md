@@ -7,6 +7,17 @@
   Build mathematical animations by dragging shapes, writing LaTeX, creating morphs, and rendering cinematic videos -- all from your browser.  
   Or switch to **Code-Only mode** and write raw Manim Python with full library access.
 
+**v1.4.1:** **Interactive 3D editing** (issue #42): a real Three.js viewport
+joins the editor (Canvas | 3D | Code). It renders the canonical scene in the
+exact Manim frame the video renderer uses, gives free orbit/pan/zoom,
+raycast selection, move/rotate/scale gizmos, per-axis 3D rotations
+(rotationX/rotationY/rotationZ), true non-uniform dimensions via
+`stretch_to_fit_*` (cube depth, sphere/cone/cylinder ellipsoid axes), a
+Camera-to-Render bridge, playback-following 3D preview, and mixed 2D+3D
+scenes — every manipulation writes the canonical store, and save/reload/
+export round-trips the full 3D state byte-identically. Also fixed: the
+latent `Cone(radius=...)` codegen bug (Manim CE needs `base_radius`).
+
 **v1.4.0:** **E2E audit hardening** (issue #40): the comprehensive
 end-to-end suite (frontend editing -> canonical scene -> timeline ->
 preview -> persistence -> reload -> export, plus adversarial cases) drives
@@ -39,7 +50,7 @@ manim is installed.
   <img src="https://img.shields.io/badge/manim-CE-orange?logo=python&logoColor=white" alt="Manim">
   <img src="https://img.shields.io/badge/node-20-339933?logo=node.js&logoColor=white" alt="Node">
   <img src="https://img.shields.io/badge/license-MIT-blue" alt="License">
-  <img src="https://img.shields.io/badge/version-1.1.0-6B7280" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.4.1-6B7280" alt="Version">
 </p>
 
 ---
@@ -74,6 +85,7 @@ Screenshots are stored in `docs/screenshots/`. Replace or add PNGs there and upd
 - **Desktop-style menubar** -- File, Edit, View, Tools, Help menus with keyboard shortcuts and responsive collapse
 - **16 shape types** -- Rectangle, Square, Circle, Ellipse, Triangle, Star, Polygon, Arrow, Heart, Line, Dot, Dot Grid, Text, Image, SVG, and more
 - **3D objects** -- Cube, Sphere, Cone, and Cylinder with z placement; adding one switches the scene to a ThreeDScene with the orbitable camera (phi/theta/distance/gamma), all editable from the Properties panel
+- **Interactive 3D viewport** (issue #42) -- A real Three.js editing view: orbit/pan/zoom to inspect the scene from any angle, click-to-select, and move/rotate/scale gizmos that write x/y/z, rotation X/Y/Z, and width/height/depth directly into the canonical scene. The viewport speaks the exact render coordinate frame, so what you manipulate is what the video shows. Cone/cylinder stand upright by default (rotationX = -90). "Camera → Render" copies the editor view into the render camera. 2D objects render as flat meshes in the same view, so mixed scenes stay coherent; the 3D view also follows timeline playback
 - **Parent/child hierarchy** -- Attach objects to parents (cycle-safe); children follow the parent's move/rotate/scale transforms in the preview AND the exported video (family VGroups)
 - **Nested groups** -- Group objects and other groups; the exporter emits nested VGroups
 - **Visibility + timeline contract** -- Per-object visible flag and [enter, enter+duration) windows honored identically by the editor canvas and the render; layering follows z-order; clips move between tracks; the scene duration is editable

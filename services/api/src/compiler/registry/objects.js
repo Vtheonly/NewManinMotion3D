@@ -308,63 +308,92 @@ registerObjectType('axes', {
 
 /** Shared codegen for solid 3D primitives (VGroup-based mobjects).
  *  Emitted size uses the true frame mapping; the z placement comes from the
- *  object's optional `z` property (stage-relative depth, default 0). */
-function solid3dLines(n, ctor, { fill, stroke, opacity, strokeWidth, hasFill, hasStroke }) {
+ *  object's optional `z` property (stage-relative depth, default 0).
+ *  Issue #42: true non-uniform dimensions. The constructor emits a unit
+ *  primitive and stretch_to_fit_width/height/depth scales it to the exact
+ *  canonical width/height/depth (in frame units), so the 3D viewport, the
+ *  2D layout preview and the rendered video all agree on the shape. */
+function solid3dLines(n, ctor, { fill, stroke, opacity, strokeWidth, hasFill, hasStroke, size }) {
   const lines = [`${n} = ${ctor}`];
+  if (size) {
+    lines.push(`${n}.stretch_to_fit_width(${size.w.toFixed(4)})`);
+    lines.push(`${n}.stretch_to_fit_height(${size.h.toFixed(4)})`);
+    lines.push(`${n}.stretch_to_fit_depth(${size.d.toFixed(4)})`);
+  }
   if (hasFill) lines.push(`${n}.set_fill(color=${fill}, opacity=${safeOpacity(opacity)})`);
   if (hasStroke) lines.push(`${n}.set_stroke(color=${stroke}, width=${safeNum(strokeWidth, 2)})`);
   return lines;
 }
 
+/** Canonical 3D dimensions in frame units (matches web engine stage3d.js).
+ *  Semantics = world bounding-box extents of the UNROTATED primitive
+ *  (Manim cone/cylinder axis = +z, base in the xy plane):
+ *    cube:     x=width, y=height, z=depth (defaults to width)
+ *    sphere:   x=width, y=height, z=width  (circular xz footprint)
+ *    cone/cyl: x=width, y=width (base), z=height (the axis) — new objects
+ *              carry rotationX=-90 so the axis stands upright and the
+ *              on-screen vertical extent equals the canonical height,
+ *              matching the 2D layout preview and the 3D viewport. */
+function solid3dSize(obj, sw, sh) {
+  const w = (obj.width || 1) / sw * FRAME_WIDTH;
+  const h = (obj.height || 1) / sh * FRAME_HEIGHT;
+  if (obj.type === 'cube') {
+    const dPx = obj.depth != null ? (Number(obj.depth) || 1) : obj.width;
+    return { w, h, d: dPx / sw * FRAME_WIDTH };
+  }
+  if (obj.type === 'cone' || obj.type === 'cylinder') {
+    return { w, h: w, d: h };
+  }
+  return { w, h, d: w };   // sphere
+}
+
 registerObjectType('cube', {
   label: 'Cube',
-  codegen(obj, { sw, hex, safeNum, safeOpacity }) {
+  codegen(obj, ctx) {
     const n = vn(obj.id);
-    const side = Math.min(obj.width, obj.height) / sw * FRAME_WIDTH;
+    const { hex, safeNum, safeOpacity, sw } = ctx;
     const fill = hex(obj.fill), stroke = hex(obj.stroke), opacity = safeOpacity(obj.opacity);
     const sw2 = safeNum(obj.strokeWidth, 2);
-    return solid3dLines(n, `Cube(side_length=${side.toFixed(3)}, fill_opacity=${safeOpacity(opacity)})`,
-      { fill, stroke, opacity, strokeWidth: sw2, hasFill: fill !== null, hasStroke: stroke !== null });
+    return solid3dLines(n, `Cube(side_length=1.0, fill_opacity=${safeOpacity(opacity)})`,
+      { fill, stroke, opacity, strokeWidth: sw2, hasFill: fill !== null, hasStroke: stroke !== null, size: solid3dSize(obj, sw, ctx.sh) });
   }
 });
 
 registerObjectType('sphere', {
   label: 'Sphere',
-  codegen(obj, { sw, hex, safeNum, safeOpacity }) {
+  codegen(obj, ctx) {
     const n = vn(obj.id);
-    const radius = Math.min(obj.width, obj.height) / 2 / sw * FRAME_WIDTH;
+    const { hex, safeNum, safeOpacity, sw } = ctx;
     const fill = hex(obj.fill), stroke = hex(obj.stroke), opacity = safeOpacity(obj.opacity);
     const sw2 = safeNum(obj.strokeWidth, 2);
     const res = safeNum(obj.resolution, 24);
-    return solid3dLines(n, `Sphere(radius=${radius.toFixed(3)}, resolution=(${res}, ${res}), fill_opacity=${safeOpacity(opacity)})`,
-      { fill, stroke, opacity, strokeWidth: sw2, hasFill: fill !== null, hasStroke: stroke !== null });
+    return solid3dLines(n, `Sphere(radius=1.0, resolution=(${res}, ${res}), fill_opacity=${safeOpacity(opacity)})`,
+      { fill, stroke, opacity, strokeWidth: sw2, hasFill: fill !== null, hasStroke: stroke !== null, size: solid3dSize(obj, sw, ctx.sh) });
   }
 });
 
 registerObjectType('cone', {
   label: 'Cone',
-  codegen(obj, { sw, sh, hex, safeNum, safeOpacity }) {
+  codegen(obj, ctx) {
     const n = vn(obj.id);
-    const radius = Math.min(obj.width, obj.height) / 2 / sw * FRAME_WIDTH;
-    const height = obj.height / sh * FRAME_HEIGHT;
+    const { hex, safeNum, safeOpacity, sw, sh } = ctx;
     const fill = hex(obj.fill), stroke = hex(obj.stroke), opacity = safeOpacity(obj.opacity);
     const sw2 = safeNum(obj.strokeWidth, 2);
-    return solid3dLines(n, `Cone(radius=${radius.toFixed(3)}, height=${height.toFixed(3)}, fill_opacity=${safeOpacity(opacity)})`,
-      { fill, stroke, opacity, strokeWidth: sw2, hasFill: fill !== null, hasStroke: stroke !== null });
+    return solid3dLines(n, `Cone(base_radius=1.0, height=1.0, fill_opacity=${safeOpacity(opacity)})`,
+      { fill, stroke, opacity, strokeWidth: sw2, hasFill: fill !== null, hasStroke: stroke !== null, size: solid3dSize(obj, sw, sh) });
   }
 });
 
 registerObjectType('cylinder', {
   label: 'Cylinder',
-  codegen(obj, { sw, sh, hex, safeNum, safeOpacity }) {
+  codegen(obj, ctx) {
     const n = vn(obj.id);
-    const radius = Math.min(obj.width, obj.height) / 2 / sw * FRAME_WIDTH;
-    const height = obj.height / sh * FRAME_HEIGHT;
+    const { hex, safeNum, safeOpacity, sw, sh } = ctx;
     const fill = hex(obj.fill), stroke = hex(obj.stroke), opacity = safeOpacity(obj.opacity);
     const sw2 = safeNum(obj.strokeWidth, 2);
     const res = safeNum(obj.resolution, 24);
-    return solid3dLines(n, `Cylinder(radius=${radius.toFixed(3)}, height=${height.toFixed(3)}, resolution=(${res}, ${res}), fill_opacity=${safeOpacity(opacity)})`,
-      { fill, stroke, opacity, strokeWidth: sw2, hasFill: fill !== null, hasStroke: stroke !== null });
+    return solid3dLines(n, `Cylinder(radius=1.0, height=1.0, resolution=(${res}, ${res}), fill_opacity=${safeOpacity(opacity)})`,
+      { fill, stroke, opacity, strokeWidth: sw2, hasFill: fill !== null, hasStroke: stroke !== null, size: solid3dSize(obj, sw, sh) });
   }
 });
 

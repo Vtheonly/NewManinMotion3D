@@ -148,7 +148,37 @@ families are exact.
 | `legacyCompat` | pure, reported API renames on the render copy | fix logic bugs; touch `codeSource` |
 | Renderer worker | execute scene.py via the manim CLI (one pipeline, P-010) | execute code for detection |
 
-## 6. Verification hooks
+## 6. The 3D editing contract (issue #42)
+
+The interactive 3D viewport (`services/web/src/components/stage/Viewport3D.vue`,
+Three.js) is a THIRD VIEW of the same canonical scene — never a second scene
+model. Its guarantees:
+
+1. **Coordinate identity.** The viewport renders in the exact Manim frame
+   the codegen emits (`engine/stage3d.js` mirrors
+   `compiler/registry/shared.js`: stage px → frame units, y flipped, +z =
+   toward camera). A gizmo drag lands at the same place in the video.
+2. **Gizmo → canonical.** Every translate/rotate/scale drag writes
+   `x/y/z`, `rotationX/rotationY/rotation` (Z), `width/height/depth` through
+   `actions.updateObject` — the inspector, 2D canvas, timeline and export
+   all observe the same mutation. History commits at drag end.
+3. **Rotation composition.** Three Euler 'XYZ' = `Rx·Ry·Rz`; the codegen
+   emits `rotate(z, OUT)` → `rotate(y, UP)` → `rotate(x, RIGHT)` which
+   composes the same matrix, so multi-axis gizmo orientations are exact.
+   Editor Z stays canvas-clockwise (negated once, as for 2D).
+4. **Dimensions.** Solids emit unit constructors + `stretch_to_fit_*` to
+   the canonical extents. Semantics (unrotated bbox): cube `w×h×depth`;
+   sphere `w×h×w`; cone/cylinder `w×w×height` with default `rotationX=-90`
+   so they stand upright and the vertical extent equals `height`.
+5. **Editor camera ≠ render camera.** Orbit freely; "Camera → Render"
+   copies the view's phi/theta/distance into `project.camera` on demand.
+6. **Mixed scenes.** 2D objects render as flat meshes at z=0 (plane/
+   circle/star), constrained to X/Y gizmo axes; both views and the render
+   agree on placement.
+7. **Playback.** `frameState` overrides (timeline clips, visibility
+   windows) drive the meshes, so the 3D view previews the animation.
+
+## 7. Verification hooks
 
 - `services/web/tests/sourceMode.test.mjs` — the contract itself (routing,
   adopt/detach, migration).
@@ -156,6 +186,10 @@ families are exact.
 - `services/api/tests/renderSource.test.mjs` — compat boundary + real-HTTP
   routing enforcement.
 - `services/api/tests/compiler.test.mjs` — timeline batching + wave fidelity.
+- `services/web/tests/stage3d.test.mjs` — the 3D coordinate/rotation/size
+  contract above (pins viewport ↔ codegen parity).
+- `services/api/tests/compiler.test.mjs` (3D section) — stretch dimensions,
+  per-axis rotation order, z placement.
 - **`services/web/tests/e2e.test.mjs`** — the comprehensive end-to-end
   suite: frontend authoring of every object type (incl. 3D) and editable
   property, the preview contract (windows, visibility, completed-clip

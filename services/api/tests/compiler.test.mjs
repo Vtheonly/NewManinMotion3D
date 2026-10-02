@@ -486,3 +486,72 @@ test('codegen: empty text content renders empty, never the placeholder "Text"', 
   assert.ok(result.success);
   assert.doesNotMatch(result.code, /Text\("Text"/, 'placeholder "Text" never emitted');
 });
+
+// ─── 3D solids: true dimensions + full 3-axis rotation (issue #42) ───────────
+
+test('codegen: 3D solids emit unit ctor + stretch to exact canonical dimensions', () => {
+  const objects = [
+    { id: 'obj_cube', type: 'cube', name: 'C', x: 960, y: 540, z: 100, width: 300, height: 200, depth: 150,
+      fill: '#ff8800', stroke: '#ffffff', strokeWidth: 2, opacity: 1,
+      enterTime: 0, duration: 4, enterAnim: 'fade_in', enterAnimDur: 0.5, exitAnim: 'none' },
+    { id: 'obj_cone', type: 'cone', name: 'K', x: 400, y: 400, width: 200, height: 300,
+      fill: '#a78bfa', stroke: '#ffffff', strokeWidth: 2, opacity: 1,
+      enterTime: 0, duration: 4, enterAnim: 'fade_in', enterAnimDur: 0.5, exitAnim: 'none' },
+    { id: 'obj_cyl', type: 'cylinder', name: 'Y', x: 800, y: 400, width: 120, height: 400,
+      fill: '#34d399', stroke: '#ffffff', strokeWidth: 2, opacity: 1,
+      enterTime: 0, duration: 4, enterAnim: 'fade_in', enterAnimDur: 0.5, exitAnim: 'none' },
+    { id: 'obj_sph', type: 'sphere', name: 'S', x: 1200, y: 400, width: 220, height: 220, resolution: 32,
+      fill: '#38bdf8', stroke: '#ffffff', strokeWidth: 2, opacity: 1,
+      enterTime: 0, duration: 4, enterAnim: 'fade_in', enterAnimDur: 0.5, exitAnim: 'none' }
+  ];
+  const result = compileProject(makeProject({ objects, tracks: [] }), '/data/assets/p');
+  assert.ok(result.success);
+  const c = result.code;
+  // Cube: unit ctor stretched to w=2.2222 h=1.4815 d=1.1111 (300/200/150 px)
+  assert.match(c, /obj_cube = Cube\(side_length=1\.0/);
+  assert.match(c, /obj_cube\.stretch_to_fit_width\(2\.2222\)/);
+  assert.match(c, /obj_cube\.stretch_to_fit_height\(1\.4815\)/);
+  assert.match(c, /obj_cube\.stretch_to_fit_depth\(1\.1111\)/);
+  // Cube z placement: 100px → 0.741 world units
+  assert.match(c, /obj_cube\.move_to\(\[-?\d+\.\d+, -?\d+\.\d+, 0\.741\]\)/);
+  // Cone: Manim CE signature is base_radius (NOT radius — latent bug fixed)
+  assert.match(c, /obj_cone = Cone\(base_radius=1\.0, height=1\.0/);
+  // Cone semantics: base x/y = width, axis z = height (300px → 2.2222)
+  assert.match(c, /obj_cone\.stretch_to_fit_width\(1\.4815\)/);
+  assert.match(c, /obj_cone\.stretch_to_fit_height\(1\.4815\)/);
+  assert.match(c, /obj_cone\.stretch_to_fit_depth\(2\.2222\)/);
+  // Cylinder + sphere unit ctors
+  assert.match(c, /obj_cyl = Cylinder\(radius=1\.0, height=1\.0/);
+  assert.match(c, /obj_sph = Sphere\(radius=1\.0, resolution=\(32, 32\)/);
+});
+
+test('codegen: 3D per-axis rotation composes Z→Y→X (Three Euler XYZ parity)', () => {
+  const objects = [
+    { id: 'obj_r', type: 'cube', name: 'R', x: 960, y: 540, width: 300, height: 300,
+      rotationX: 30, rotationY: 45, rotation: 15,
+      fill: '#ff8800', stroke: '#ffffff', strokeWidth: 2, opacity: 1,
+      enterTime: 0, duration: 4, enterAnim: 'fade_in', enterAnimDur: 0.5, exitAnim: 'none' }
+  ];
+  const result = compileProject(makeProject({ objects, tracks: [] }), '/data/assets/p');
+  assert.ok(result.success);
+  const c = result.code;
+  // Emission ORDER: OUT first, then UP, then RIGHT → composes to Rx·Ry·Rz
+  const iOut = c.indexOf('obj_r.rotate(-0.2618, axis=OUT)');
+  const iUp = c.indexOf('obj_r.rotate(0.7854, axis=UP)');
+  const iRight = c.indexOf('obj_r.rotate(0.5236, axis=RIGHT)');
+  assert.ok(iOut !== -1, 'Z rotation emitted');
+  assert.ok(iUp !== -1, 'Y rotation emitted');
+  assert.ok(iRight !== -1, 'X rotation emitted');
+  assert.ok(iOut < iUp && iUp < iRight, 'rotation order is Z, Y, X');
+});
+
+test('codegen: 3D zero rotations emit no rotate lines', () => {
+  const objects = [
+    { id: 'obj_flat', type: 'cube', name: 'F', x: 960, y: 540, width: 300, height: 300,
+      fill: '#ff8800', stroke: '#ffffff', strokeWidth: 2, opacity: 1,
+      enterTime: 0, duration: 4, enterAnim: 'fade_in', enterAnimDur: 0.5, exitAnim: 'none' }
+  ];
+  const result = compileProject(makeProject({ objects, tracks: [] }), '/data/assets/p');
+  assert.ok(result.success);
+  assert.doesNotMatch(result.code, /obj_flat\.rotate\(/);
+});

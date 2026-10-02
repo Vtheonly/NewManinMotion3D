@@ -174,3 +174,19 @@ full stack — cycle-safe `setParent` + subtree duplication + orphan-on-delete
 + migration repair; cube/sphere/cone/cylinder registered end-to-end with
 `z` placement; visibility checkbox honored by preview + codegen;
 `moveClip` + Track selector; nested groups; sceneDuration field.
+
+## P-018 — 3D objects were flat drawings with no editing layer (issue #42)
+
+**Found:** user report, iteration 038-001 (2026-10-03).
+3D solids rendered as hand-drawn 2D isometric projections on Konva: no
+orbitable view, no transform gizmos, no per-axis rotation, no depth, no
+real-time 3D interaction — and the only 3D "camera" knob was numeric in
+the inspector. A latent codegen bug compounded it: `Cone(radius=...)` is
+not a valid Manim CE signature (`base_radius`) — any cone would have
+failed the render. **Fix:** the interactive 3D viewport
+(`Viewport3D.vue`, three.js) speaking the exact compiler coordinate frame
+(`engine/stage3d.js` contract); canonical `rotationX`/`rotationY`/`depth`
++ non-uniform dimensions via `stretch_to_fit_*`; per-axis rotations
+composed Z→Y→X to equal Three Euler XYZ; Camera→Render bridge; mixed
+2D/3D scenes; playback-following meshes. The 3D viewport is a third view
+of the ONE canonical scene — never a second model.

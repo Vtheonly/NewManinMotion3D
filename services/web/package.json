@@ -1,17 +1,18 @@
 {
   "name": "manim-motion-editor",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node tests/engine.test.mjs && node tests/scene.test.mjs && node tests/import.test.mjs && node tests/sourceMode.test.mjs && node tests/e2e.test.mjs",
+    "test": "node tests/engine.test.mjs && node tests/scene.test.mjs && node tests/import.test.mjs && node tests/sourceMode.test.mjs && node tests/stage3d.test.mjs && node tests/e2e.test.mjs",
     "test:e2e": "node tests/e2e.test.mjs"
   },
   "dependencies": {
     "highlight.js": "^11.11.1",
     "konva": "^9.3.0",
+    "three": "^0.169.0",
     "vue": "^2.7.16",
     "vue-konva": "^2.1.7"
   },
