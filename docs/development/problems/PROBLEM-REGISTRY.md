@@ -125,3 +125,52 @@ all fail on current Manim CE. Hand-written scenes therefore need the
 render layer rather than erroring — the source itself is never rewritten.
 The fixture also carried a genuine `loop_col`/`loop_c` NameError (fixed in
 the fixture; source logic bugs are NOT compat rules).
+
+## P-014 — Timeline drift on overlapping animations (the serializer bug)
+
+**Found:** E2E audit, iteration 037-001 (2026-10-03).
+The exporter serialized step groups sequentially: a 2s move clip starting at
+t=1 pushed a same-time-group at t=2 to t=3, and every later step (including
+exit animations) drifted by the overlap — while the preview runs clips in
+parallel. The exported video could never match the editor on any timeline
+with overlapping animations. **Fix (architecture):** the wave scheduler —
+steps that overlap a running wave join its single `self.play` as
+`Succession(Wait(delay), anim)`; all clip animations are constructor-style
+so each carries its own `run_time`. Verified by pixel-asserting a real
+render at the exact positions the preview engine predicts.
+
+## P-015 — Preview/export parity defects (six separate root causes)
+
+**Found:** E2E audit, iteration 037-001 (2026-10-03).
+Each of these made the canvas disagree with the rendered video, none were
+visible from isolated unit tests: (a) objects rendered outside their
+`[enterTime, enterTime+duration)` window; (b) `obj.visible` was dead state
+honored by no layer; (c) exporters ignored `zOrder` (insertion order
+instead); (d) rotation was mirrored (canvas CW vs Manim CCW); (e) scale
+clips dropped `targetScaleY`; (f) completed clips snapped the preview back
+to base state while the export persists them. **Fix:** all six closed at
+their layers — `computeFrame` enforces windows + visibility, the codegen
+filters invisible objects and sorts by zOrder, rotation/scale convert at
+the export boundary, and completed clips hold their final value.
+
+## P-016 — Duplicated codegen (client vs server) with real drift
+
+**Found:** E2E audit, iteration 037-001 (2026-10-03).
+The browser export maintained a parallel Manim generator that had already
+drifted from the server compiler (frame width 14 vs 14.222, dot radius 7 vs
+7.11) — the same second-representation disease as P-011, one layer up.
+**Fix:** the client delegates to the shared registry compiler
+(`api/src/compiler`), so the downloaded `.py` and the rendered `scene.py`
+are byte-identical (regression-tested).
+
+## P-017 — Missing frontend editability: hierarchy, 3D, visibility, tracks
+
+**Found:** E2E audit, iteration 037-001 (2026-10-03).
+`parentId` did not exist, there were no 3D mobjects in the visual editor,
+`visible` had no UI, clips could not move between tracks, groups could not
+nest, and `sceneDuration` was not editable — the backend could not inspect
+or modify what the product contract said should be editable. **Fix:** the
+full stack — cycle-safe `setParent` + subtree duplication + orphan-on-delete
++ migration repair; cube/sphere/cone/cylinder registered end-to-end with
+`z` placement; visibility checkbox honored by preview + codegen;
+`moveClip` + Track selector; nested groups; sceneDuration field.

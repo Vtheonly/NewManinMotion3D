@@ -130,3 +130,20 @@
 | V-08 | E2E render verification of the legacy scene from source | ✅ | 036-001 | 90 animations, 49s, visually verified |
 | V-09 | Visual approximation badge per object in canvas/timeline UI | ⬜ | — | approx flags exist; per-object badges pending #15 |
 | V-10 | Semantic IR import for arbitrary Python (fold into #29) | ⬜ | — | see B-23 |
+
+
+## E2E audit hardening (issue #37)
+
+| ID | Task | Status | Iter | Notes |
+|----|------|:-----:|:----:|-------|
+| E-01 | One codegen: client export delegates to the shared compiler | ✅ | 037-001 | byte-identical client/server output, parity-tested |
+| E-02 | Wave scheduler: overlapping animations play with exact delayed starts | ✅ | 037-002 | Succession(Wait(delay), anim); ctor-style clip anims |
+| E-03 | Preview window/visibility contract (objects hidden outside [enter, exit)) | ✅ | 037-001 | computeFrame + canvas recompute-on-edit |
+| E-04 | zOrder/rotation/scale/visibility export parity fixes | ✅ | 037-001 | P-015 (a)–(f) closed |
+| E-05 | Parent/child hierarchy across model/actions/preview/codegen | ✅ | 037-001 | family VGroups; cycle-safe; persistence + repair |
+| E-06 | 3D objects (cube/sphere/cone/cylinder) end-to-end | ✅ | 037-001 | z placement, palette, panel, projected preview |
+| E-07 | Clips move between tracks + sceneDuration editable | ✅ | 037-001 | moveClip action + Track selector |
+| E-08 | Comprehensive E2E suite (web, 272 checks) | ✅ | 037-002 | authoring → preview → persistence → export → adversarial |
+| E-09 | Real-render pixel verification (api) | ✅ | 037-002 | Manim render + ffmpeg frames + preview-predicted positions |
+| E-10 | Trailing hold spans the editor timeline end | ✅ | 037-002 | windows/sceneDuration honored — no truncation |
+| E-11 | Nested groups (childIds reference groups) | ✅ | 037-001 | cycle-guarded, nested VGroups |

@@ -7,6 +7,21 @@
   Build mathematical animations by dragging shapes, writing LaTeX, creating morphs, and rendering cinematic videos -- all from your browser.  
   Or switch to **Code-Only mode** and write raw Manim Python with full library access.
 
+**v1.4.0:** **E2E audit hardening** (issue #37): the comprehensive
+end-to-end suite (frontend editing -> canonical scene -> timeline ->
+preview -> persistence -> reload -> export, plus adversarial cases) drives
+the last preview/export parity defects out of the system: overlapping
+animations now schedule into exact parallel waves (`Succession(Wait(delay),
+anim)`), objects honor their timeline windows and visibility flag in BOTH
+renderers, layering follows z-order, rotation is no longer mirrored, the
+browser export and the server render share ONE compiler (byte-identical
+output), and the visual editor gained frontend-editable parent/child
+hierarchies (family VGroups in the export), 3D objects (cube, sphere, cone,
+cylinder with z placement), track reassignment, nested groups, and an
+editable scene duration. Real-render pixel verification (Manim + ffmpeg
+frame assertions against preview-predicted positions) runs in CI wherever
+manim is installed.
+
 **v1.3.1:** **One canonical scene per project** (issue #36): the editor preview and the exported video are two renderings of the same source of truth. Imported hand-written Manim is preserved verbatim as the render source (the visual model becomes a non-destructive, coverage-reported editing scaffold); legacy Manim APIs render through a documented compat boundary; the exporter batches same-time timeline steps into parallel plays so the video duration matches the editor. Contract: [docs/development/architecture/RENDER-SOURCE.md](docs/development/architecture/RENDER-SOURCE.md).
 
 **v1.3.0:** A canonical **scientific scene runtime** (`sci-ir/1`) now powers Code-Only mode: author scenes through a typed Python API (proteins, MLPs, torus flows, PoE chains, attention, formulas with live values), export/import them losslessly, and render them through the same pipeline as the editor. See [docs/development/syntax/OVERVIEW.md](docs/development/syntax/OVERVIEW.md).
@@ -58,6 +73,10 @@ Screenshots are stored in `docs/screenshots/`. Replace or add PNGs there and upd
 - **Light & Dark themes** -- Toggle between warm light and sleek dark palettes via View > Theme; persists across sessions
 - **Desktop-style menubar** -- File, Edit, View, Tools, Help menus with keyboard shortcuts and responsive collapse
 - **16 shape types** -- Rectangle, Square, Circle, Ellipse, Triangle, Star, Polygon, Arrow, Heart, Line, Dot, Dot Grid, Text, Image, SVG, and more
+- **3D objects** -- Cube, Sphere, Cone, and Cylinder with z placement; adding one switches the scene to a ThreeDScene with the orbitable camera (phi/theta/distance/gamma), all editable from the Properties panel
+- **Parent/child hierarchy** -- Attach objects to parents (cycle-safe); children follow the parent's move/rotate/scale transforms in the preview AND the exported video (family VGroups)
+- **Nested groups** -- Group objects and other groups; the exporter emits nested VGroups
+- **Visibility + timeline contract** -- Per-object visible flag and [enter, enter+duration) windows honored identically by the editor canvas and the render; layering follows z-order; clips move between tracks; the scene duration is editable
 - **LaTeX math objects** -- Add `MathTex` expressions (e.g. `E = mc^2`) that render natively in Manim
 - **Coordinate Axes** -- Configurable `Axes` with custom x/y ranges and tick steps
 - **Asset uploads** -- Import PNGs, JPEGs, and SVGs; drag onto the canvas from the sidebar

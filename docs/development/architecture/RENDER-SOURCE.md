@@ -1,8 +1,8 @@
 # Render-Source Contract — One Canonical Scene (issue #36)
 
-> **Status:** Iterations 001–002 complete. This document defines the
-> architecture the render pipeline must maintain: every exported video is a
-> rendering of the **same canonical scene** the editor holds. It extends
+> **Status:** Iterations 001–003 complete (E2E audit). This document defines
+> the architecture the render pipeline must maintain: every exported video is
+> a rendering of the **same canonical scene** the editor holds. It extends
 > `SCENE-IR.md` (the scientific scene model) to the visual and code editors.
 
 ## 1. The contract
@@ -83,20 +83,58 @@ renderer must surface them with the real traceback.
 
 The editor timeline is the truth; the exported video must match it:
 
+- **Wave scheduler (exact overlap timing, E2E audit):** steps are grouped
+  into non-overlapping waves. A step whose time falls inside a still-running
+  wave joins that wave's single `self.play` wrapped as
+  `Succession(Wait(delay), anim)`, so it starts at its **exact timeline
+  time** — overlapping animations never serialize (the drift bug, P-014).
 - Animations that start at the same time play **in parallel** (one batched
   `self.play`), each with its own duration — never sequentially.
+- All clip animations are constructor-style (`ApplyMethod`, `Transform`,
+  `Rotate`) so every animation carries its own `run_time` / `rate_func`.
 - Instant (`enterAnim: 'none'`) steps merge into one zero-duration
-  `self.add`.
+  `self.add`; a delayed instant appearance is a 0.01s linear FadeIn at its
+  delay (time-exact, visually instant).
 - Objects appear at their `enterTime`, stay for their `duration`, and exit
-  at `enterTime + duration` (adjusted by clip ends).
+  at `enterTime + duration` (adjusted by clip ends). `visible: false`
+  objects (and clips referencing them) are never emitted.
+- **The video spans the editor timeline end**: `max(last window end, last
+  clip end, last step end) + 1`, and at least `sceneDuration` (editable in
+  the canvas panel). No truncation, no dead-air inflation.
+- Objects are emitted in `zOrder` order (Manim creation order = layering).
+- Rotation is negated at the export boundary (editor degrees are
+  clockwise-positive on a y-down canvas; Manim is CCW on y-up).
 - Text placeholders: empty content renders empty — the literal string
   `"Text"` can only appear if the user typed it.
-- Client (`export/manim.js`) and server (`compiler/codegen.js`) emit the
-  same structure — keep both in sync (parity contract, ARCHITECTURE.md §2.4).
+- **ONE codegen**: the browser export (`export/manim.js`) delegates to the
+  shared registry compiler (`api/src/compiler`) — the downloaded `.py` is
+  byte-identical to the `scene.py` the API renders (tested).
 
-Documented approximation: a same-time group that mixes `.animate` chains
-(which cannot carry per-animation `run_time`) uses one play-level
-`run_time = max(duration)`. Everything else is exact.
+### Parent/child hierarchy (canonical, frontend-editable)
+
+Objects carry `parentId` (cycle-safe, deep). The preview
+(`engine/hierarchy.js`) propagates each ancestor's delta (translation /
+rotation / scale about the parent pivot) to all descendants, composing with
+each object's own animation state. The exporter emits nested **family
+VGroups** (`fam_A = VGroup(A, fam_B)`, innermost first) and clips targeting
+a parent animate its family about the parent's base center — the same
+rigid composition the preview computes. Deleting a parent orphans children
+(each object owns its window); duplicating a parent duplicates the subtree.
+
+### 3D objects
+
+`cube`, `sphere`, `cone`, `cylinder` are registered mobjects with a
+stage-relative `z` (editable in the properties panel). Adding one to a 2D
+scene switches the scene type to `three_d` (the orbitable camera). The
+canvas draws a projected layout preview (position/size/rotation/scale/
+colors canonical); the render applies the real 3D mobject + camera —
+documented: the projected preview position is exact for 2D scenes, and
+camera-dependent for `three_d` scenes.
+
+Documented approximation: a family clip that both moves AND rotates in the
+same instant pivots rotations about the parent's base center (codegen-time
+constant), where the preview uses the parent's current center. Single-clip
+families are exact.
 
 ## 5. Renderer / editor responsibilities
 
@@ -117,5 +155,16 @@ Documented approximation: a same-time group that mixes `.animate` chains
 - `services/web/tests/import.test.mjs` — coverage report + honesty rules.
 - `services/api/tests/renderSource.test.mjs` — compat boundary + real-HTTP
   routing enforcement.
-- `services/api/tests/compiler.test.mjs` — timeline batching fidelity.
+- `services/api/tests/compiler.test.mjs` — timeline batching + wave fidelity.
+- **`services/web/tests/e2e.test.mjs`** — the comprehensive end-to-end
+  suite: frontend authoring of every object type (incl. 3D) and editable
+  property, the preview contract (windows, visibility, completed-clip
+  holds, multi-track blending, parent propagation), persistence round-trips
+  (JSON + real HTTP), byte-identical client/server export parity, and
+  adversarial cases (unknown types, hostile values, broken hierarchies,
+  deep/wide trees, the 3D-parent combo).
+- **`services/api/tests/e2e.render.test.mjs`** — REAL Manim render +
+  ffmpeg frame extraction + pixel assertions at the positions the preview
+  engine predicts (2D exact WYSIWYG; 3D structural ink). Set
+  `RENDER_E2E=0` to skip where manim is unavailable.
 - Iteration reports in `iterations/` carry the E2E render evidence.
