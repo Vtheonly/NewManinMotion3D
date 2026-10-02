@@ -87,7 +87,11 @@ services:
         max_attempts: 5
 
   web:
-    build: ./services/web
+    # Repo-root context: the web bundle imports the canonical codegen from
+    # services/api/src/compiler (issue #40); see services/web/Dockerfile.
+    build:
+      context: .
+      dockerfile: services/web/Dockerfile
     ports:
       - "8080:80"
     depends_on:
@@ -95,17 +99,20 @@ services:
 
   web-dev:
     build:
-      context: ./services/web
+      context: .
+      dockerfile: services/web/Dockerfile
       target: deps
     command: npx vite --host 0.0.0.0 --port 5173
     environment:
       - VITE_API_TARGET=http://api:3000
     volumes:
-      - ./services/web/src:/app/src
-      - ./services/web/public:/app/public
-      - ./services/web/index.html:/app/index.html
-      - ./services/web/vite.config.js:/app/vite.config.js
-      - web_node_modules:/app/node_modules
+      - ./services/web/src:/app/services/web/src
+      - ./services/web/public:/app/services/web/public
+      - ./services/web/index.html:/app/services/web/index.html
+      - ./services/web/vite.config.js:/app/services/web/vite.config.js
+      # Shared canonical codegen — required by src/export/manim.js
+      - ./services/api/src:/app/services/api/src
+      - web_node_modules:/app/services/web/node_modules
     ports:
       - "5173:5173"
     depends_on:

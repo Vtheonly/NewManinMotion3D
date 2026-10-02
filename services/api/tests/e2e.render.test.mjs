@@ -127,11 +127,19 @@ async function renderManim(proj, workDir) {
   const res = await new Promise((resolve) => {
     const p = spawn(MANIM_PY, args, { cwd: workDir, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '', err = '';
+    // Watchdog: kills a stuck render. The handle is cleared when the child
+    // exits and unref'd so it can never hold the test-runner event loop open
+    // (regression: a dangling 420s timer kept `npm test` "running" for 7
+    // minutes after every test had already passed — issue #41 audit).
+    const killer = setTimeout(() => {
+      try { p.kill(); } catch {}
+      resolve({ code: -2, out, err: 'timeout' });
+    }, 420000);
+    killer.unref?.();
     p.stdout.on('data', d => { out += d; });
     p.stderr.on('data', d => { err += d; });
-    p.on('close', c => resolve({ code: c, out, err }));
-    p.on('error', e => resolve({ code: -1, out, err: String(e) }));
-    setTimeout(() => { try { p.kill(); } catch {} resolve({ code: -2, out, err: 'timeout' }); }, 420000);
+    p.on('close', c => { clearTimeout(killer); resolve({ code: c, out, err }); });
+    p.on('error', e => { clearTimeout(killer); resolve({ code: -1, out, err: String(e) }); });
   });
   assert.equal(res.code, 0, `manim failed:\n${(res.err || res.out).slice(-2000)}`);
   // manim output: <media>/videos/scene/480p15/<SceneName>.mp4
