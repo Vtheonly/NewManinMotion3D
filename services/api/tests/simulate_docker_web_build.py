@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 # Repo root = two levels up from this script (services/api/tests/)
-REPO = Path(__file__).resolve().parents[2]
+REPO = Path(__file__).resolve().parents[3]   # services/api/tests/ -> repo root
 import tempfile
 SIM_ROOT = Path(tempfile.mkdtemp(prefix='docker-web-sim-'))
 SIM_CTX = SIM_ROOT / 'context'   # transferred context
