@@ -46,6 +46,13 @@ function createDefaultProject(editorMode = 'visual', sceneType = 'scene_2d') {
     name: 'My Animation',
     editorMode,          // 'visual' | 'code' | 'scientific' (#29)
     codeSource: editorMode === 'code' ? CODE_MODE_TEMPLATE : '',
+    // Canonical render-source contract (issue #36):
+    //   'canvas'     — the visual object/track model is the source of truth
+    //   'code'      — project.codeSource (verbatim Python) is the source of
+    //                  truth; the visual model is a non-destructive scaffold
+    //   'scientific' is carried by editorMode (sciDocument renders via /render-sci)
+    sourceMode: editorMode === 'code' ? 'code' : 'canvas',
+    importReport: null,  // coverage summary of the last code import (issue #36)
     sciDocument: null,   // sci-ir/1 document when editorMode === 'scientific'
     sceneType,           // 'scene_2d' | 'moving_camera' | 'three_d' | 'custom' (Issue #1)
     scene: { className: 'MainScene' },   // generated class name / custom base
@@ -104,6 +111,12 @@ function migrateProjectSchema(project) {
   if (!project.scene) project.scene = { className: 'MainScene' };
   if (!project.scene.className) project.scene.className = 'MainScene';
   if (!project.camera) project.camera = {};
+  // Canonical render-source defaults (issue #36): older projects never had
+  // a sourceMode; code-mode projects are code-sourced by definition.
+  if (!project.sourceMode) {
+    project.sourceMode = project.editorMode === 'code' ? 'code' : 'canvas';
+  }
+  if (project.importReport === undefined) project.importReport = null;
   // Drop camera keys the current scene type does not understand (prevents
   // e.g. 3D phi values leaking into a 2D moving-camera project)
   const meta = getSceneTypeMeta(project.sceneType);
@@ -811,6 +824,61 @@ export const actions = {
   },
 
   // ══════════════════════════════════════════════════════════════════════════
+  // Canonical render-source contract (issue #36)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Adopt a scene parsed from hand-written Manim code into the visual editor.
+   *
+   * The parsed model is a NON-DESTRUCTIVE scaffold: whenever the importer
+   * reports that information was lost (dropped constructs or approximated
+   * values), the original code becomes the canonical render source
+   * (`sourceMode: 'code'`) so renders reproduce the authored scene exactly
+   * instead of the approximation. The original text is always preserved in
+   * `project.codeSource` — never discarded.
+   *
+   * @param {string} code the exact source text
+   * @param {{objects: Array, tracks: Array, stage: Object, coverage?: Object}} parsed
+   * @returns {{sourceMode: string, report: Object}} what the importer decided
+   */
+  adoptImportedCode(code, parsed) {
+    const coverage = parsed.coverage || { dropped: [], approximated: 0, complete: true };
+    const lossy = coverage.dropped.length > 0 || coverage.approximated > 0;
+
+    store.project.objects = parsed.objects;
+    store.project.tracks = parsed.tracks;
+    if (parsed.stage && parsed.stage.backgroundColor) {
+      store.project.stage.backgroundColor = parsed.stage.backgroundColor;
+    }
+    store.project.codeSource = code;
+    store.project.sourceMode = lossy ? 'code' : 'canvas';
+    store.project.importReport = {
+      at: new Date().toISOString(),
+      objectCount: parsed.objects.length,
+      clipCount: parsed.tracks.reduce((s, t) => s + t.clips.length, 0),
+      dropped: coverage.dropped,
+      approximated: coverage.approximated,
+      complete: !lossy
+    };
+    actions.deselectAll();
+    actions.commitState();
+    store.isDirty = true;
+    return { sourceMode: store.project.sourceMode, report: store.project.importReport };
+  },
+
+  /**
+   * Explicitly detach from the imported source: the visual scaffold becomes
+   * the render source. Callers must warn — constructs the importer could not
+   * represent are gone from the scaffold (see project.importReport).
+   */
+  detachFromSource() {
+    if (store.project.sourceMode !== 'code') return false;
+    store.project.sourceMode = 'canvas';
+    store.isDirty = true;
+    return true;
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
   // Server Project I/O  (Docker / API)
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -974,17 +1042,22 @@ export const actions = {
       store.renderStatus = 'saving';
       const projectId = await actions.saveToServer();
 
-      // 2. Trigger render
-      //    Code-mode scene classes are auto-detected server-side (Issue #1):
-      //    any Scene / MovingCameraScene / ThreeDScene / custom class renders.
-      //    Scientific mode emits runnable Python from the IR and renders
-      //    through the same job queue (issue #29 §7).
+      // 2. Trigger render — routed by the CANONICAL SOURCE (issue #36):
+      //    - scientific mode: emit runnable Python from the IR document
+      //      (sci-ir/1 is the source of truth; same job queue)
+      //    - code mode OR code-sourced import: render the exact codeSource
+      //      verbatim (the visual scaffold is never compiled for these)
+      //    - canvas: compile the visual model (its source of truth)
+      //    The API enforces the same routing server-side (defence in depth).
       store.renderStatus = 'queued';
       let result;
       if (store.project.editorMode === 'scientific') {
         const { ir } = await import('../sci/client.js');
         result = await ir.render(projectId, sciDocumentForRender(), quality);
-      } else if (store.project.editorMode === 'code') {
+      } else if (store.project.editorMode === 'code'
+          || (store.project.sourceMode === 'code'
+              && typeof store.project.codeSource === 'string'
+              && store.project.codeSource.trim().length > 0)) {
         result = await api.projects.renderCode(projectId, {
           quality,
           codeSource: store.project.codeSource

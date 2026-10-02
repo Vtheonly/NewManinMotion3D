@@ -1,5 +1,6 @@
 /**
- * parseManimScript — tolerant legacy Manim importer (issue #33 follow-up).
+ * parseManimScript — tolerant legacy Manim importer (issue #33 follow-up,
+ * coverage contract added for issue #36).
  *
  * Emits the visual project model from hand-written Manim CE code: one
  * timeline object per constructed mobject, one clip per recognised animation,
@@ -7,6 +8,11 @@
  * helper calls, `Flash`/`Wiggle`…) are tracked as virtual variables so
  * everything else keeps its true timing. `custom`/`animate`-style one-off
  * animations still consume their run_time.
+ *
+ * The parsed model is a NON-DESTRUCTIVE SCAFFOLD, never a render source on
+ * its own (issue #36): the importer reports what it could not represent via
+ * `coverage` so the caller can keep the original code as the canonical
+ * render source. Nothing is silently dropped or approximated.
  */
 
 import { statements, parseArgs, matchParen, num } from './parseLegacy.js';
@@ -27,7 +33,35 @@ export function parseManimScriptTolerant(code, sw = 1920, sh = 1080) {
   let idx = 0;
   const uid = (p) => `${p}_imported_${idx++}`;
   const reg = (name, id) => { varMap[name] = id; };
-  const objOf = (name) => objects.find((o) => o.id === varMap[name]);
+  // Resolve a variable at its point of use; unresolvable references are
+  // content losses and are recorded live (scopes reset at def/class, so a
+  // post-hoc check would misreport helper-scoped mapped objects).
+  const objOf = (name) => {
+    if (!varMap.hasOwnProperty(name) || varMap[name] === null) {
+      noteDropped(name, 'referenced in the scene flow but not representable');
+      return undefined;
+    }
+    return objects.find((o) => o.id === varMap[name]);
+  };
+
+  // ── Coverage tracking (issue #36) ────────────────────────────────────────
+  // dropped: constructs referenced by the scene flow that the visual model
+  //          cannot represent (deduped per variable name).
+  // approximated: objects whose colour/position/text/size fell back to a
+  //          default because the source expression was not a literal.
+  const droppedVars = new Set();
+  const dropped = [];
+  let approximated = 0;
+  const noteDropped = (name, why) => {
+    if (droppedVars.has(name)) return;
+    droppedVars.add(name);
+    dropped.push({ name, why });
+  };
+  const markApprox = (obj, why) => {
+    if (!obj) return;
+    if (!Array.isArray(obj.approx)) obj.approx = [];
+    if (!obj.approx.includes(why)) obj.approx.push(why);
+  };
 
   const handlePlay = (inner) => {
     const rt = num(String(inner).match(/run_time\s*=\s*([\d.]+)/)?.[1], null);
@@ -39,7 +73,8 @@ export function parseManimScriptTolerant(code, sw = 1920, sh = 1080) {
       while ((m = re.exec(anims))) {
         const vm = /^\s*([\w.]+)/.exec(anims.slice(re.lastIndex));
         if (!vm) continue;
-        const o = objOf(vm[1].split('.')[0]);
+        const vname = vm[1].split('.')[0];
+        const o = objOf(vname);
         const e = make(parseArgs(anims.slice(re.lastIndex)));
         if (o) {
           if (e.exit) { o.exitAnim = 'fade_out'; o.duration = Math.round((ct - (o.enterTime ?? ct) + (rt ?? e.dur)) * 10) / 10; }
@@ -59,6 +94,7 @@ export function parseManimScriptTolerant(code, sw = 1920, sh = 1080) {
       else if (m[2] === 'scale') { const f = num(chain.replace(/^[\s\S]*?scale\s*\(/, '').split(')')[0], 1) || 1; base.type = 'scale'; base.params = { targetScaleX: f, targetScaleY: f }; clips.push(base); }
       else if (m[2] === 'rotate') { base.type = 'rotate'; base.params = { targetRotation: Math.round(num(chain, 1) * 180 / Math.PI) }; clips.push(base); }
       else if (m[2] === 'set_opacity') { base.type = 'fade'; base.params = { targetOpacity: num(chain, 1) }; clips.push(base); }
+      else markApprox(o, `.${m[2]}() not representable as a clip`);
     }
     for (const m of anims.matchAll(/(?:ReplacementTransform|FadeTransform|Transform)\s*\(\s*(\w+)\s*,\s*(\w+)/g)) {
       const src = objOf(m[1]);
@@ -117,9 +153,15 @@ export function parseManimScriptTolerant(code, sw = 1920, sh = 1080) {
     if (o.duration === null || o.duration >= 10) o.duration = Math.max(3, Math.round((ct + 1 - o.enterTime) * 10) / 10);
   }
 
+  // Approximations are per-object flags; count once, after all sources
+  // (makeObject defaults, applyChain fallbacks, unrepresentable animates)
+  // have had a chance to mark.
+  approximated = objects.filter((o) => Array.isArray(o.approx) && o.approx.length > 0).length;
+
   return {
     objects,
     tracks: clips.length ? [{ id: 'track_parsed', name: 'Track 1', clips }] : [],
-    stage: { backgroundColor: bgColor, width: sw, height: sh }
+    stage: { backgroundColor: bgColor, width: sw, height: sh },
+    coverage: { dropped, approximated, complete: dropped.length === 0 && approximated === 0 }
   };
 }

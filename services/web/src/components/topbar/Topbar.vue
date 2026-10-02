@@ -301,6 +301,11 @@ export default {
       return 'Renders against a custom scene class you define yourself.';
     },
     isDirty()     { return store.isDirty; },
+    isCodeSourced() {
+      return store.project.sourceMode === 'code'
+        && typeof store.project.codeSource === 'string'
+        && store.project.codeSource.trim().length > 0;
+    },
     gridVisible() { return store.project.stage.gridVisible; },
     snapEnabled() { return store.project.stage.snapEnabled; },
     stageW()      { return store.project.stage.width; },
@@ -327,6 +332,7 @@ export default {
             { id: 'f-browse', label: 'Server Projects\u2026', action: () => this.browseServer() },
             { type: 'separator' },
             { id: 'f-export', label: 'Export .py',             action: () => this.openExport() },
+            { id: 'f-detach', label: 'Detach from Source Code', action: () => this.$root.detachFromSource(), disabled: () => !this.isCodeSourced },
           ]
         },
         {

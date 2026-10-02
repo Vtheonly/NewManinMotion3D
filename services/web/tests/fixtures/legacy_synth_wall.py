@@ -123,7 +123,7 @@ def recolor_anims(protein, cols):
         tiles = h[0]
         for i, t in enumerate(tiles):
             anims.append(t.animate.set_fill(col_a if i % 2 == 0 else col_b))
-    anims.append(protein.loops.animate.set_stroke(loop_col))
+    anims.append(protein.loops.animate.set_stroke(loop_c))
     return anims
 
 
