@@ -20,9 +20,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO = Path('/home/z/my-project/workspace/NewManinMotion3D')
-SIM_CTX = Path('/home/z/my-project/docker-sim/context')   # transferred context
-SIM_IMG = Path('/home/z/my-project/docker-sim/image')     # image root (=/app)
+# Repo root = two levels up from this script (services/api/tests/)
+REPO = Path(__file__).resolve().parents[2]
+import tempfile
+SIM_ROOT = Path(tempfile.mkdtemp(prefix='docker-web-sim-'))
+SIM_CTX = SIM_ROOT / 'context'   # transferred context
+SIM_IMG = SIM_ROOT / 'image'     # image root (=/app)
 
 # --- 1. dockerignore rules (mirrors the root .dockerignore) -----------------
 ROOT_DIR_RULES = {'.git', 'docs', 'website', 'node_modules', 'media'}
@@ -76,7 +79,7 @@ def run(cmd, cwd, check=True):
 
 def main():
     # Fresh simulation dirs
-    shutil.rmtree('/home/z/my-project/docker-sim', ignore_errors=True)
+    shutil.rmtree(SIM_ROOT, ignore_errors=True)
     SIM_CTX.mkdir(parents=True)
     SIM_IMG.mkdir(parents=True)
 
@@ -103,7 +106,7 @@ def main():
     step('3. Dockerfile: RUN npm install (reusing proven local node_modules)')
     # The user's build log shows this layer CACHED+succeeded; reuse via hardlinks
     run(['cp', '-al', str(REPO / 'services/web/node_modules'),
-         str(web_img / 'node_modules')], cwd='/home/z/my-project')
+         str(web_img / 'node_modules')], cwd=REPO)
     n = sum(1 for _ in (web_img / 'node_modules').rglob('*'))
     print(f'node_modules entries: {n}')
 
