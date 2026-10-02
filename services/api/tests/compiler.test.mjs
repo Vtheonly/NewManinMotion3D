@@ -199,7 +199,11 @@ test('codegen: legacy 2D project generates class MainScene(Scene)', () => {
   assert.match(result.code, /self\.camera\.background_color = "#0d1117"/);
   assert.match(result.code, /obj_1 = Circle\(radius=/);
   assert.match(result.code, /obj_1\.move_to\(/);
-  assert.match(result.code, /self\.play\(Write\(obj_2\)/);       // enterAnim write
+  // Issue #36 timeline fidelity: both objects enter at t=0, so their enter
+  // animations are batched into ONE parallel play (editor semantics) —
+  // each carrying its own run_time, not two sequential 0.5s plays.
+  assert.match(result.code, /self\.play\(FadeIn\(obj_1, run_time=0\.5\), Write\(obj_2, run_time=0\.5\)\)/);
+  assert.doesNotMatch(result.code, /self\.play\(Write\(obj_2\)\s*$/m);
   assert.match(result.code, /obj_1\.animate\.move_to\(/);         // move clip
   assert.doesNotMatch(result.code, /MovingCameraScene|ThreeDScene/);
 });
@@ -377,4 +381,104 @@ test('generated 2D code is python-parseable scene structure (smoke)', () => {
   const detected = detectScenes(result.code);
   assert.equal(detected.scenes.length, 1);
   assert.equal(detected.scenes[0].name, 'MainScene');
+});
+
+// ─── Timeline fidelity: same-time steps are parallel (issue #36) ──────────────
+
+test('codegen: many simultaneous enters are ONE parallel play, not sequential', () => {
+  const objects = [1, 2, 3, 4, 5].map((n) => ({
+    id: `obj_${n}`, type: 'circle', name: `C${n}`, x: 960, y: 540, width: 100, height: 100,
+    fill: '#3b82f6', stroke: '#ffffff', enterTime: 0, duration: 8,
+    enterAnim: 'fade_in', enterAnimDur: 0.5, exitAnim: 'none'
+  }));
+  const result = compileProject(makeProject({ objects, tracks: [] }), '/data/assets/p');
+  assert.ok(result.success);
+  const plays = result.code.split('\n').filter((l) => l.trim().startsWith('self.play('));
+  assert.equal(plays.length, 1, 'a single batched play covers all t=0 enters');
+  assert.match(result.code, /self\.play\(FadeIn\(obj_1, run_time=0\.5\), FadeIn\(obj_2, run_time=0\.5\)/);
+  // The exported timeline is 0.5s for the batch (was 5 × 0.5 = 2.5s sequential).
+  assert.doesNotMatch(result.code, /self\.play\(FadeIn\(obj_2\)\)$/m, 'no sequential per-object plays');
+});
+
+test('codegen: exported timeline duration matches the editor timeline', () => {
+  const objects = [1, 2, 3].map((n) => ({
+    id: `obj_${n}`, type: 'circle', name: `C${n}`, x: 960, y: 540, width: 100, height: 100,
+    fill: '#3b82f6', stroke: '#ffffff', enterTime: 0, duration: 5,
+    enterAnim: 'fade_in', enterAnimDur: 0.5, exitAnim: 'fade_out', exitAnimDur: 0.5
+  }));
+  const result = compileProject(makeProject({ objects, tracks: [] }), '/data/assets/p');
+  assert.ok(result.success);
+  // Reconstruct the video timeline: sum waits + play run_times.
+  let t = 0;
+  for (const line of result.code.split('\n')) {
+    const s = line.trim();
+    const w = /^self\.wait\(([\d.]+)\)$/.exec(s);
+    const p = /^self\.play\((.*)\)$/.exec(s);
+    if (w) t += parseFloat(w[1]);
+    else if (p) {
+      const rts = [...p[1].matchAll(/run_time=([\d.]+)/g)].map((m) => parseFloat(m[1]));
+      t += rts.length ? Math.max(...rts) : 1;
+    }
+  }
+  // Editor timeline: enter batch 0.5 + visible until exit at t=5 (wait 4.5)
+  // + exit batch 0.5 + final hold 1 = 6.5s — the exported video ends when the
+  // editor timeline ends, instead of inflating by per-object sequential plays.
+  assert.ok(Math.abs(t - 6.5) < 0.3, `exported duration ~ editor timeline (got ${t.toFixed(1)}s)`);
+});
+
+test('codegen: instant (none) enters merge into one zero-duration self.add', () => {
+  const objects = [1, 2].map((n) => ({
+    id: `obj_${n}`, type: 'circle', name: `C${n}`, x: 960, y: 540, width: 100, height: 100,
+    fill: '#3b82f6', stroke: '#ffffff', enterTime: 0, duration: 8,
+    enterAnim: 'none', exitAnim: 'none'
+  }));
+  const result = compileProject(makeProject({ objects, tracks: [] }), '/data/assets/p');
+  assert.ok(result.success);
+  assert.match(result.code, /self\.add\(obj_1, obj_2\)/, 'instant enters merge into one add');
+  // adds consume zero timeline time — no 0.5s drift per add.
+  const firstPlay = result.code.split('\n').find((l) => l.trim().startsWith('self.play('));
+  assert.ok(!firstPlay, 'no play emitted for instant-only group');
+});
+
+test('codegen: simultaneous animations with different durations keep their own run_time', () => {
+  const objects = [
+    { id: 'obj_a', type: 'circle', name: 'A', x: 960, y: 540, width: 100, height: 100,
+      fill: '#3b82f6', stroke: '#ffffff', enterTime: 0, duration: 8,
+      enterAnim: 'fade_in', enterAnimDur: 0.3, exitAnim: 'none' },
+    { id: 'obj_b', type: 'square', name: 'B', x: 960, y: 540, width: 100, height: 100,
+      fill: '#3b82f6', stroke: '#ffffff', enterTime: 0, duration: 8,
+      enterAnim: 'write', enterAnimDur: 1.2, exitAnim: 'none' }
+  ];
+  const result = compileProject(makeProject({ objects, tracks: [] }), '/data/assets/p');
+  assert.ok(result.success);
+  assert.match(result.code,
+    /self\.play\(FadeIn\(obj_a, run_time=0\.3\), Write\(obj_b, run_time=1\.2\)\)/,
+    'parallel independent durations preserved (editor semantics)');
+});
+
+test('codegen: mixed group with .animate uses play-level max run_time', () => {
+  const objects = [
+    { id: 'obj_a', type: 'circle', name: 'A', x: 960, y: 540, width: 100, height: 100,
+      fill: '#3b82f6', stroke: '#ffffff', enterTime: 0, duration: 8,
+      enterAnim: 'fade_in', enterAnimDur: 0.5, exitAnim: 'none' }
+  ];
+  const tracks = [{
+    id: 't1', name: 'Track 1',
+    clips: [{ id: 'c1', type: 'scale', startTime: 0, duration: 1.4, easing: 'ease_in_out',
+      sourceId: 'obj_a', params: { targetScaleX: 2, targetScaleY: 2 } }]
+  }];
+  const result = compileProject(makeProject({ objects, tracks }), '/data/assets/p');
+  assert.ok(result.success);
+  assert.match(result.code, /self\.play\(FadeIn\(obj_a\), obj_a\.animate\.scale\([22.00]*\), run_time=1\.4\)/);
+});
+
+test('codegen: empty text content renders empty, never the placeholder "Text"', () => {
+  const objects = [
+    { id: 'obj_empty', type: 'text', name: 'Empty', x: 960, y: 200, width: 400, height: 80,
+      content: '', fontSize: 48, fill: '#ffffff', stroke: 'transparent', opacity: 1,
+      enterTime: 0, duration: 4, enterAnim: 'fade_in', enterAnimDur: 0.5, exitAnim: 'none' }
+  ];
+  const result = compileProject(makeProject({ objects, tracks: [] }), '/data/assets/p');
+  assert.ok(result.success);
+  assert.doesNotMatch(result.code, /Text\("Text"/, 'placeholder "Text" never emitted');
 });

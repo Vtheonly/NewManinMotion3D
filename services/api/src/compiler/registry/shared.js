@@ -44,9 +44,11 @@ export function safeOpacity(v) {
   return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 1;
 }
 
-/** Sanitise text for Python string literals. */
+/** Sanitise text for Python string literals. Empty/missing content renders
+ *  empty — a placeholder "Text" string must never appear in a render unless
+ *  the user actually typed it (issue #36). */
 export function safeText(s) {
-  if (!s || typeof s !== 'string') return 'Text';
+  if (typeof s !== 'string') return '';
   return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '');
 }
 

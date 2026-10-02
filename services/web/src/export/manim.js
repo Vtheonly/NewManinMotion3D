@@ -45,9 +45,11 @@ function safeOpacity(val) {
   return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 1;
 }
 
-/** Sanitise text for Python string literals. */
+/** Sanitise text for Python string literals. Empty/missing content renders
+ *  empty — a placeholder "Text" string must never appear in a render unless
+ *  the user actually typed it (issue #36; mirrors the server safeText). */
 function safeText(s) {
-  if (!s || typeof s !== 'string') return 'Text';
+  if (typeof s !== 'string') return '';
   return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '');
 }
 
@@ -585,18 +587,110 @@ export function generateManimScript(project) {
   steps.sort((a, b) => a.time - b.time || a.order - b.order);
 
   // ── Emit animation code ──
+  // Issue #36 timeline fidelity: steps that start at the same time are
+  // SIMULTANEOUS in the editor — they are batched into one self.play(...)
+  // (mirrors the server compiler; per-animation run_time keeps parallel,
+  // independent durations exact).
   L.push(`${indent}# Animation`);
   let t = 0;
-  for (const step of steps) {
-    const wait = step.time - t;
+  const EPS = 0.05;
+  let i = 0;
+  while (i < steps.length) {
+    let j = i;
+    while (j + 1 < steps.length && Math.abs(steps[j + 1].time - steps[i].time) <= EPS) j++;
+    const group = steps.slice(i, j + 1);
+    const gTime = group[0].time;
+
+    const wait = gTime - t;
     if (wait > 0.05) L.push(`${indent}self.wait(${wait.toFixed(1)})`);
-    L.push(`${indent}${step.code}`);
-    t = step.time + (step.dur || 0.5);
+    t = gTime + emitStepGroup(L, indent, group);
+    i = j + 1;
   }
 
   L.push('');
   L.push(`${indent}self.wait(1)`);
   return L.join('\n');
+}
+
+/** Emit one same-time step group (editor-parallel semantics, issue #36).
+ *  Mirrors services/api codegen.js emitStepGroup — keep both in sync. */
+function emitStepGroup(L, indent, group) {
+  const adds = [];
+  const plays = [];
+  for (const step of group) {
+    if (typeof step.code === 'string' && step.code.startsWith('self.add(')) {
+      adds.push(step.code.slice('self.add('.length, -1).trim());
+    } else {
+      plays.push(step);
+    }
+  }
+
+  if (adds.length > 0) {
+    L.push(`${indent}self.add(${adds.join(', ')})`);
+  }
+  if (plays.length === 0) return 0;
+  if (plays.length === 1) {
+    L.push(`${indent}${plays[0].code}`);
+    return plays[0].dur || 0.5;
+  }
+
+  const parts = plays.map((step) => {
+    const { anim, rateFunc } = splitPlayKwargs(step.code);
+    return { anim, rateFunc, dur: step.dur || 0.5 };
+  });
+
+  if (parts.some((p) => p.anim.includes('.animate.'))) {
+    const runTime = Math.max(...parts.map((p) => p.dur));
+    const rates = [...new Set(parts.filter((p) => p.rateFunc).map((p) => p.rateFunc))];
+    const decorated = parts.map((p) =>
+      (isCtorAnim(p.anim) && p.rateFunc) ? withKwargs(p.anim, [`rate_func=${p.rateFunc}`]) : p.anim);
+    const rateTail = rates.length === 1 ? `, rate_func=${rates[0]}` : '';
+    L.push(`${indent}self.play(${decorated.join(', ')}${rateTail}, run_time=${runTime.toFixed(1)})`);
+    return runTime;
+  }
+
+  const decorated = parts.map((p) => {
+    const kws = [];
+    if (p.rateFunc) kws.push(`rate_func=${p.rateFunc}`);
+    kws.push(`run_time=${p.dur.toFixed(1)}`);
+    return withKwargs(p.anim, kws);
+  });
+  L.push(`${indent}self.play(${decorated.join(', ')})`);
+  return Math.max(...parts.map((p) => p.dur));
+}
+
+const isCtorAnim = (expr) => /^[A-Z]\w*\(/.test(String(expr).trim());
+
+function splitPlayKwargs(code) {
+  let s = String(code).trim();
+  let rateFunc = null;
+  if (s.startsWith('self.play(') && s.endsWith(')')) s = s.slice('self.play('.length, -1);
+  for (;;) {
+    const m = /,\s*(run_time=[\d.]+|rate_func=[\w.]+)\s*$/.exec(s);
+    if (!m) break;
+    if (m[1].startsWith('rate_func')) rateFunc = m[1].slice('rate_func='.length);
+    s = s.slice(0, m.index);
+  }
+  return { anim: s.trim(), rateFunc };
+}
+
+function withKwargs(expr, kws) {
+  const s = String(expr).trim();
+  if (s.endsWith(')')) {
+    let depth = 0;
+    for (let i = s.length - 1; i >= 0; i--) {
+      if (s[i] === ')') depth += 1;
+      else if (s[i] === '(') {
+        depth -= 1;
+        if (depth === 0) {
+          const head = s.slice(0, i);
+          const inner = s.slice(i + 1, -1).trim();
+          return inner ? `${head}(${inner}, ${kws.join(', ')})` : `${head}(${kws.join(', ')})`;
+        }
+      }
+    }
+  }
+  return `${s}, ${kws.join(', ')}`;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

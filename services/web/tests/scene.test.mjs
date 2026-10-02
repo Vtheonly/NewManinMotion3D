@@ -9,7 +9,7 @@
  *  3. Schema migration defaults for older projects
  */
 
-import { detectScenesClient } from '../src/export/manim.js';
+import { detectScenesClient, generateManimScript } from '../src/export/manim.js';
 import { SCENE_TYPES, getSceneTypeMeta } from '../src/store/project.js';
 
 let passed = 0, failed = 0;
@@ -67,6 +67,40 @@ assert(detectScenesClient('class Broken(((:').length === 0, 'garbage source -> n
 const stringSrc = 'doc = """\nclass Fake(Scene):\n    pass\n"""\nclass Real(Scene):\n    pass\n';
 const strScenes = detectScenesClient(stringSrc);
 assert(strScenes.length === 1 && strScenes[0].name === 'Real', 'classes inside strings ignored');
+
+
+// ─── Timeline fidelity + placeholder policy (issue #36, client parity) ──────
+
+console.log('=== Export timeline fidelity (issue #36) ===');
+const fidelityProject = {
+  name: 'Fidelity', editorMode: 'visual', sceneType: 'scene_2d',
+  scene: { className: 'MainScene' }, camera: {},
+  stage: { width: 1920, height: 1080, backgroundColor: '#0d1117' },
+  objects: [1, 2, 3].map((n) => ({
+    id: `obj_${n}`, type: 'circle', name: `C${n}`, x: 960, y: 540, width: 100, height: 100,
+    fill: '#3b82f6', stroke: '#ffffff', enterTime: 0, duration: 6,
+    enterAnim: 'fade_in', enterAnimDur: 0.5, exitAnim: 'none'
+  })),
+  groups: [], tracks: [], assets: []
+};
+const fidelityCode = generateManimScript(fidelityProject);
+const playLines = fidelityCode.split('\n').filter((l) => l.trim().startsWith('self.play('));
+assert(playLines.length === 1, 'simultaneous enters batch into ONE parallel play (client parity)');
+assert(/self\.play\(FadeIn\(obj_1, run_time=0\.5\), FadeIn\(obj_2, run_time=0\.5\)/.test(fidelityCode),
+  'per-animation run_time preserved in the batch');
+
+console.log('=== Placeholder policy (issue #36) ===');
+const emptyTextProject = {
+  name: 'Empty', editorMode: 'visual', sceneType: 'scene_2d',
+  scene: { className: 'MainScene' }, camera: {},
+  stage: { width: 1920, height: 1080, backgroundColor: '#0d1117' },
+  objects: [{ id: 'obj_t', type: 'text', name: 'T', x: 960, y: 540, width: 200, height: 50,
+    content: '', fontSize: 48, fill: '#ffffff', stroke: 'transparent', opacity: 1,
+    enterTime: 0, duration: 4, enterAnim: 'fade_in', enterAnimDur: 0.5, exitAnim: 'none' }],
+  groups: [], tracks: [], assets: []
+};
+const emptyCode = generateManimScript(emptyTextProject);
+assert(!emptyCode.includes('Text("Text"'), 'client codegen never emits the placeholder "Text"');
 
 console.log('==================================================');
 console.log(`Results: ${passed} passed, ${failed} failed`);
