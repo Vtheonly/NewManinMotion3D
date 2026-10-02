@@ -89,3 +89,39 @@ a schema bump (VERSIONING.md).
 than driving Scene.render() programmatically — this keeps the CLI, Code-Only
 editor path and the Docker worker on literally the same execution path
 (and inherits manim CLI flag semantics for free).
+
+## P-011 — A lossy import became the render source (root cause of issue #36)
+
+**Found:** iteration 001 of #36 (2026-10-03).
+The tolerant legacy importer (a #33 follow-up) converted hand-written Manim
+into the visual project model and that approximation **silently became the
+render source** — the second scene representation the canonical contract
+forbids. Named colour constants resolved to default white fills covering the
+frame; variable/f-string text args became literal 'Text' placeholders;
+unparseable positions pinned objects to center; helper-scoped objects were
+forced to `enterTime = 0`. **Fix (architecture, not a patch):** the
+render-source contract — `project.sourceMode`, coverage-reported imports,
+code preserved verbatim, server-side routing enforcement, warned detach
+(RENDER-SOURCE.md). Importer approximations are now editor-visible only.
+
+## P-012 — `.animate` builders cannot carry per-animation run_time
+
+**Found:** iteration 002 of #36 (2026-10-03).
+Manim CE accepts per-animation `run_time` on Animation constructors inside
+one `self.play`, and `animate.with_duration()` does not exist (0.21) —
+`.animate` chains only take play-level run_time, which overrides everything.
+Codegen therefore batches same-time steps with per-animation run_time for
+constructor animations, and play-level `run_time = max(duration)` for groups
+containing `.animate` chains (documented approximation, RENDER-SOURCE.md §4).
+
+## P-013 — The legacy synth_wall fixture targeted removed Manim APIs
+
+**Found:** iteration 001 of #36 (2026-10-03).
+`self.camera_frame` (removed in CE 0.15), 2D point literals passed to
+Polygon/Line/Dot (CE requires 3D points), 2D points reaching `move_to`
+through helper arguments, and `Wiggle(angle=…)` (renamed `rotation_angle`)
+all fail on current Manim CE. Hand-written scenes therefore need the
+**documented, reported compat boundary** (`compiler/legacyCompat.js`) at the
+render layer rather than erroring — the source itself is never rewritten.
+The fixture also carried a genuine `loop_col`/`loop_c` NameError (fixed in
+the fixture; source logic bugs are NOT compat rules).
