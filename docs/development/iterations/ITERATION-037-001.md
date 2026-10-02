@@ -1,6 +1,6 @@
 # ITERATION-037-001 — The Comprehensive E2E Audit
 
-> **Issue:** #37 (this iteration created and closed it)
+> **Issue:** #40 (this iteration created and closed it)
 > **Date:** 2026-10-03
 > **Scope:** Full-system end-to-end testing as real usage + fixing every
 > discovered root cause + regression re-verification of all prior issues.

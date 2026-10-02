@@ -7,7 +7,7 @@
   Build mathematical animations by dragging shapes, writing LaTeX, creating morphs, and rendering cinematic videos -- all from your browser.  
   Or switch to **Code-Only mode** and write raw Manim Python with full library access.
 
-**v1.4.0:** **E2E audit hardening** (issue #37): the comprehensive
+**v1.4.0:** **E2E audit hardening** (issue #40): the comprehensive
 end-to-end suite (frontend editing -> canonical scene -> timeline ->
 preview -> persistence -> reload -> export, plus adversarial cases) drives
 the last preview/export parity defects out of the system: overlapping

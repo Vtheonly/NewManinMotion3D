@@ -132,7 +132,7 @@
 | V-10 | Semantic IR import for arbitrary Python (fold into #29) | ⬜ | — | see B-23 |
 
 
-## E2E audit hardening (issue #37)
+## E2E audit hardening (issue #40)
 
 | ID | Task | Status | Iter | Notes |
 |----|------|:-----:|:----:|-------|
