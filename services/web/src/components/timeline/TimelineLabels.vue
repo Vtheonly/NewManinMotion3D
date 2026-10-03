@@ -35,7 +35,7 @@ export default {
 
 <style scoped>
 .row-label {
-  @apply flex items-center gap-1.5 px-2 h-7 text-[10px] text-studio-text cursor-pointer;
+  @apply flex items-center gap-1.5 px-2 h-9 text-[10px] text-studio-text cursor-pointer;
   @apply border-b border-studio-border/30 border-l-2 hover:bg-studio-bg/60 flex-shrink-0;
 }
 .row-label.selected { @apply bg-studio-accent/10 text-studio-accent; }

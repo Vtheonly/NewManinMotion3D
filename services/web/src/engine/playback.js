@@ -182,6 +182,7 @@ export class PlaybackEngine {
     }
 
     const objectMap = this._objectMap || new Map(objects.map(o => [o.id, o]));
+    const windows = this._visibilityWindows(tracks, objects);
     const evaluatedClips = [];
 
     for (let trackIdx = 0; trackIdx < tracks.length; trackIdx++) {
@@ -198,17 +199,26 @@ export class PlaybackEngine {
 
     const frame = blendClipResults(evaluatedClips, objectMap);
 
-    // Timeline window + visibility contract: hide objects outside their
-    // [enter, exit) window or flagged invisible (parity with the exporter).
+    // Timeline window + visibility contract (issue #43 — exact exporter
+    // parity):
+    //   - base window [enter, exit) with exit ADJUSTED past every
+    //     referencing clip's end (+0.1) exactly like the codegen's
+    //     exitTime, so clips that outlive an object keep it on stage;
+    //   - exitAnim 'none' never removes a mobject in the export — the
+    //     object stays until the scene ends, so the window is open-ended;
+    //   - a transform TARGET never enters on its own (the codegen skips
+    //     its enter animation): it exists on screen only from the morph's
+    //     completion onward.
     for (const obj of objects) {
       if (obj.visible === false) { frame.hiddenIds.add(obj.id); continue; }
-      const enter = obj.enterTime || 0;
-      const exit = enter + (obj.duration ?? 999);
-      if (time < enter || time >= exit) frame.hiddenIds.add(obj.id);
+      const w = windows.get(obj.id);
+      if (!w) { frame.hiddenIds.add(obj.id); continue; }
+      const start = w.morphEnter != null ? w.morphEnter : w.enter;
+      if (time < start || time >= w.exit) frame.hiddenIds.add(obj.id);
     }
 
     // Apply entrance/exit animations on top (in-window objects only)
-    this._applyEnterExitAnims(frame, time, objects);
+    this._applyEnterExitAnims(frame, time, objects, windows);
 
     // Parent transforms propagate to children (canonical hierarchy)
     propagateParentTransforms(frame, objects);
@@ -217,22 +227,92 @@ export class PlaybackEngine {
   }
 
   /**
+   * Per-object visibility windows mirroring the exporter exactly (issue #43).
+   *
+   * - enter — the authored enterTime (own entrance).
+   * - exit — adjusted exit: max(enter + duration, latest referencing clip
+   *   end + 0.1) when an exit ANIMATION plays; Infinity when the exit is
+   *   'none' (the export never removes such mobjects — they stay until the
+   *   scene ends).
+   * - morphEnter — end of the FIRST transform clip targeting this object:
+   *   its own entrance is suppressed in the export (transform targets skip
+   *   enter animations) so it first exists on screen as the morph result.
+   */
+  _visibilityWindows(tracks, objects) {
+    const windows = new Map();
+    for (const obj of objects) {
+      const enter = obj.enterTime || 0;
+      const exitNone = (obj.exitAnim || 'none') === 'none';
+      windows.set(obj.id, {
+        enter,
+        // exitStart — when the exit animation begins (= the codegen's
+        // exitTime: lifetime end, extended past referencing clip ends)
+        exitStart: enter + (obj.duration ?? 999),
+        // exit — when the object is gone: exitStart + exitAnimDur for
+        // animated exits; Infinity for 'none' (the export never removes
+        // such mobjects — they stay until the scene ends)
+        exit: Infinity,
+        exitAnim: exitNone ? null : (obj.exitAnim || 'none'),
+        exitDur: exitNone ? 0 : (obj.exitAnimDur || 0.5),
+        morphEnter: null,
+        morphEnterStart: null
+      });
+    }
+    for (const track of tracks) {
+      if (!track.clips) continue;
+      for (const clip of track.clips) {
+        // Clips referencing missing objects are dropped by the exporter —
+        // they must not extend windows here either.
+        if (clip.sourceId && !windows.has(clip.sourceId)) continue;
+        if (clip.targetId && !windows.has(clip.targetId)) continue;
+        const start = clip.startTime || 0;
+        const end = start + (clip.duration || 0);
+
+        for (const oid of [clip.sourceId, clip.targetId]) {
+          if (!oid) continue;
+          const w = windows.get(oid);
+          // Exit extends past any referencing clip (codegen exitTime rule:
+          // `if (end > exitTime) exitTime = end + 0.1`)
+          if (end > w.exitStart) w.exitStart = end + 0.1;
+          if (clip.type === 'transform' && clip.targetId === oid) {
+            // First (earliest-starting) morph targeting this object wins
+            if (w.morphEnter == null || start < w.morphEnterStart) {
+              w.morphEnter = end;
+              w.morphEnterStart = start;
+            }
+          }
+        }
+      }
+    }
+    for (const w of windows.values()) {
+      // Object is removed once its exit animation completes; 'none' exits
+      // never remove (open-ended window, exactly like the export).
+      w.exit = w.exitAnim ? w.exitStart + w.exitDur : Infinity;
+    }
+    return windows;
+  }
+
+  /**
    * Apply entrance/exit animations to objects.
    * These are per-object properties (enterAnim, exitAnim) that animate
    * how objects appear and disappear, independent of timeline clips.
    */
-  _applyEnterExitAnims(frame, time, objects) {
+  _applyEnterExitAnims(frame, time, objects, windows) {
     for (const obj of objects) {
       const enterTime = obj.enterTime || 0;
-      const duration = obj.duration || 999;
-      const exitTime = enterTime + duration;
       const enterDur = obj.enterAnimDur || 0.5;
       const exitDur = obj.exitAnimDur || 0.5;
       const enterAnim = obj.enterAnim || 'none';
       const exitAnim = obj.exitAnim || 'none';
+      const w = windows ? windows.get(obj.id) : null;
+      // Adjusted exit (clip-extended); Infinity for 'none' exits
+      const exitTime = w ? w.exitStart : enterTime + (obj.duration || 999);
+      const goneAt = w ? w.exit : exitTime;
+      // Transform targets never enter on their own (exporter suppresses it)
+      const enterSuppressed = w && w.morphEnter != null;
 
       // Object not yet visible or already gone
-      if (time < enterTime || time >= exitTime) continue;
+      if (time < (w && w.morphEnter != null ? w.morphEnter : enterTime) || time >= goneAt) continue;
 
       // Skip if hidden by a transform clip
       if (frame.hiddenIds.has(obj.id)) continue;
@@ -241,7 +321,9 @@ export class PlaybackEngine {
       let changed = false;
 
       // ── Entrance animation ──
-      if (enterAnim !== 'none' && time < enterTime + enterDur) {
+      // Transform targets never enter on their own — the exporter skips
+      // their enter animation (they first exist as the morph result).
+      if (enterAnim !== 'none' && !enterSuppressed && time < enterTime + enterDur) {
         const rawT = (time - enterTime) / enterDur;
         const t = Math.max(0, Math.min(1, rawT));
         // Use ease_out_cubic for smooth entrance
@@ -317,53 +399,60 @@ export class PlaybackEngine {
       }
 
       // ── Exit animation ──
-      if (exitAnim !== 'none' && time > exitTime - exitDur) {
-        const rawT = (exitTime - time) / exitDur;
+      // Issue #43: the exporter runs the exit animation AT exitTime
+      // (`steps.push({time: exitTime, code: FadeOut, dur})`) — the mobject
+      // is removed at exitTime + exitAnimDur. The preview must fade on the
+      // SAME side of exitTime (it used to pre-fade, going dark before the
+      // video did and vanishing exitAnimDur early).
+      if (exitAnim !== 'none' && time >= exitTime && time < exitTime + exitDur) {
+        const rawT = (time - exitTime) / exitDur;
         const t = Math.max(0, Math.min(1, rawT));
-        const eased = 1 - Math.pow(1 - t, 3);
+        // ease-in cubic: settles to invisible as the removal completes
+        const eased = t * t * t;
+        const fade = 1 - eased;   // 1 → 0 across the exit window
 
         switch (exitAnim) {
           case 'fade_out':
-            overrides.opacity = eased * (overrides.opacity ?? obj.opacity ?? 1);
+            overrides.opacity = fade * (overrides.opacity ?? obj.opacity ?? 1);
             changed = true;
             break;
           case 'shrink_out':
-            overrides.scaleX = eased * (overrides.scaleX ?? 1);
-            overrides.scaleY = eased * (overrides.scaleY ?? 1);
-            overrides.opacity = eased * (overrides.opacity ?? obj.opacity ?? 1);
+            overrides.scaleX = fade * (overrides.scaleX ?? 1);
+            overrides.scaleY = fade * (overrides.scaleY ?? 1);
+            overrides.opacity = fade * (overrides.opacity ?? obj.opacity ?? 1);
             changed = true;
             break;
           case 'fly_out_left':
-            overrides.x = (overrides.x ?? obj.x) - (1 - eased) * 600;
-            overrides.opacity = eased * (overrides.opacity ?? obj.opacity ?? 1);
+            overrides.x = (overrides.x ?? obj.x) - (1 - fade) * 600;
+            overrides.opacity = fade * (overrides.opacity ?? obj.opacity ?? 1);
             changed = true;
             break;
           case 'fly_out_right':
-            overrides.x = (overrides.x ?? obj.x) + (1 - eased) * 600;
-            overrides.opacity = eased * (overrides.opacity ?? obj.opacity ?? 1);
+            overrides.x = (overrides.x ?? obj.x) + (1 - fade) * 600;
+            overrides.opacity = fade * (overrides.opacity ?? obj.opacity ?? 1);
             changed = true;
             break;
           case 'fly_out_top':
-            overrides.y = (overrides.y ?? obj.y) - (1 - eased) * 400;
-            overrides.opacity = eased * (overrides.opacity ?? obj.opacity ?? 1);
+            overrides.y = (overrides.y ?? obj.y) - (1 - fade) * 400;
+            overrides.opacity = fade * (overrides.opacity ?? obj.opacity ?? 1);
             changed = true;
             break;
           case 'fly_out_bottom':
-            overrides.y = (overrides.y ?? obj.y) + (1 - eased) * 400;
-            overrides.opacity = eased * (overrides.opacity ?? obj.opacity ?? 1);
+            overrides.y = (overrides.y ?? obj.y) + (1 - fade) * 400;
+            overrides.opacity = fade * (overrides.opacity ?? obj.opacity ?? 1);
             changed = true;
             break;
           case 'uncreate':
-            overrides.opacity = eased * (overrides.opacity ?? obj.opacity ?? 1);
-            overrides.scaleX = 0.8 + 0.2 * eased;
-            overrides.scaleY = 0.8 + 0.2 * eased;
+            overrides.opacity = fade * (overrides.opacity ?? obj.opacity ?? 1);
+            overrides.scaleX = 0.8 + 0.2 * fade;
+            overrides.scaleY = 0.8 + 0.2 * fade;
             changed = true;
             break;
           case 'spin_out':
-            overrides.rotation = (overrides.rotation ?? obj.rotation ?? 0) + (1 - eased) * 360;
-            overrides.opacity = eased * (overrides.opacity ?? obj.opacity ?? 1);
-            overrides.scaleX = eased * (overrides.scaleX ?? 1);
-            overrides.scaleY = eased * (overrides.scaleY ?? 1);
+            overrides.rotation = (overrides.rotation ?? obj.rotation ?? 0) + (1 - fade) * 360;
+            overrides.opacity = fade * (overrides.opacity ?? obj.opacity ?? 1);
+            overrides.scaleX = fade * (overrides.scaleX ?? 1);
+            overrides.scaleY = fade * (overrides.scaleY ?? 1);
             changed = true;
             break;
         }

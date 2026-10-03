@@ -408,7 +408,11 @@ export const getters = {
   computedDuration() {
     let maxEnd = 5;
     for (const obj of store.project.objects) {
-      const end = (obj.enterTime || 0) + (obj.duration || 5);
+      let end = (obj.enterTime || 0) + (obj.duration || 5);
+      // Issue #43: animated exits keep the object on screen for their
+      // exitAnimDur after the window ends (the export's FadeOut step) —
+      // the timeline must span what the video will show.
+      if (obj.exitAnim && obj.exitAnim !== 'none') end += (obj.exitAnimDur || 0.5);
       if (end > maxEnd) maxEnd = end;
     }
     for (const track of store.project.tracks) {

@@ -98,6 +98,17 @@ The editor timeline is the truth; the exported video must match it:
 - Objects appear at their `enterTime`, stay for their `duration`, and exit
   at `enterTime + duration` (adjusted by clip ends). `visible: false`
   objects (and clips referencing them) are never emitted.
+- **Exit semantics (issue #43, preview == video):** the exit ANIMATION runs
+  at the adjusted exit time and removes the mobject `exitAnimDur` later
+  (`exitAnim: 'none'` never removes — the mobject stays until the scene
+  ends). The preview engine mirrors this exactly: no pre-exit fading, and
+  the object disappears at `exitTime + exitAnimDur`.
+- **Transform clips own the target's entrance (issue #43):** a morph's
+  target never enters on its own (the codegen skips its enter animation) —
+  it first exists on screen as the morph result at clip end, then lives by
+  its own (clip-adjusted) exit. The preview hides the target before the
+  morph completes and shows the result after, exactly like the rendered
+  `ReplacementTransform`/`FadeTransform`.
 - **The video spans the editor timeline end**: `max(last window end, last
   clip end, last step end) + 1`, and at least `sceneDuration` (editable in
   the canvas panel). No truncation, no dead-air inflation.

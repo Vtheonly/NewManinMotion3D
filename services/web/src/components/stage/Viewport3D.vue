@@ -183,6 +183,7 @@ export default {
   mounted() {
     this._dragging = false;       // gizmo drag in progress (suppress rebuilds)
     this._meshes = new Map();     // objId -> mesh
+    this._morphMeshes = new Map(); // clipId -> {mesh} (active morphs, #43)
     this._hovered = null;
     this._raycaster = new THREE.Raycaster();
     this._pointer = new THREE.Vector2();
@@ -293,6 +294,11 @@ export default {
     if (this.transform) this.transform.dispose();
     for (const mesh of this._meshes.values()) this.disposeMesh(mesh);
     this._meshes.clear();
+    for (const entry of this._morphMeshes.values()) {
+      entry.mesh.geometry.dispose();
+      entry.mesh.material.dispose();
+    }
+    this._morphMeshes.clear();
     if (this.renderer) {
       this.renderer.dispose();
       if (this.renderer.domElement && this.renderer.domElement.parentElement) {
@@ -383,7 +389,57 @@ export default {
           this._meshes.delete(id);
         }
       }
+      this.syncMorphMeshes(sw, sh);
       this.attachGizmo();
+    },
+
+    /** Active morphs render as stage-plane meshes (issue #43): during a
+     *  transform clip both objects are hidden and the interpolated shape
+     *  carries the visuals — the 3D view shows the same polygon the 2D
+     *  canvas and the exported ReplacementTransform interpolate. */
+    syncMorphMeshes(sw, sh) {
+      const morphs = (this.frameState && this.frameState.morphShapes) || [];
+      const seen = new Set();
+      for (const m of morphs) {
+        if (!m || !m.flatPoints || m.flatPoints.length < 6 || !m.clipId) continue;
+        seen.add(m.clipId);
+        let entry = this._morphMeshes.get(m.clipId);
+        if (!entry) {
+          const mesh = new THREE.Mesh(
+            new THREE.BufferGeometry(),
+            new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true })
+          );
+          mesh.userData.isMorph = true;
+          entry = { mesh };
+          this._morphMeshes.set(m.clipId, entry);
+          this.scene.add(mesh);
+        }
+        // Rebuild the polygon (points are stage-px LOCAL to the morph center)
+        const shape = new THREE.Shape();
+        const flat = m.flatPoints;
+        for (let i = 0; i < flat.length; i += 2) {
+          const X = (flat[i] / sw) * FRAME_WIDTH;
+          const Y = -(flat[i + 1] / sh) * FRAME_HEIGHT;   // stage y-down -> world y-up
+          if (i === 0) shape.moveTo(X, Y); else shape.lineTo(X, Y);
+        }
+        shape.closePath();
+        entry.mesh.geometry.dispose();
+        entry.mesh.geometry = new THREE.ShapeGeometry(shape);
+        const pos = stageToWorld(m.x, m.y, 0, sw, sh);
+        entry.mesh.position.set(pos.x, pos.y, pos.z);
+        entry.mesh.material.color.copy(hexToLinear(m.fill || '#ffffff'));
+        const op = Number.isFinite(Number(m.opacity)) ? Math.max(0, Math.min(1, Number(m.opacity))) : 1;
+        entry.mesh.material.opacity = op;
+        entry.mesh.visible = true;
+      }
+      for (const [id, entry] of [...this._morphMeshes]) {
+        if (!seen.has(id)) {
+          this.scene.remove(entry.mesh);
+          entry.mesh.geometry.dispose();
+          entry.mesh.material.dispose();
+          this._morphMeshes.delete(id);
+        }
+      }
     },
 
     /** Effective object at the playhead (playback overrides applied). */
@@ -703,7 +759,8 @@ export default {
     applyPlaybackFrame() {
       if (this._dragging) return;   // gizmo wins during a drag
       const frame = this.frameState || {};
-      if (!frame.objectOverrides && !(frame.hiddenIds instanceof Set)) return;
+      const hasMorphs = frame.morphShapes && frame.morphShapes.length;
+      if (!frame.objectOverrides && !(frame.hiddenIds instanceof Set) && !hasMorphs) return;
       this.syncFromStore();
     },
 

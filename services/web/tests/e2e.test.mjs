@@ -333,10 +333,14 @@ section('1.9 Camera + stage + scene-type switching');
 
 section('2.1 Object time windows (preview == export)');
 {
+  // Issue #43 contract: the window end is when the EXIT ANIMATION starts
+  // (the export's FadeOut step runs at exitTime and removes the mobject at
+  // exitTime + exitAnimDur); 'none' exits never remove (open-ended).
   const objects = [
-    mkObj('early', 'circle', { enterTime: 0, duration: 2 }),
+    mkObj('early', 'circle', { enterTime: 0, duration: 2 }),          // gone at 2 + 0.5 fade
     mkObj('mid', 'square', { enterTime: 4, duration: 2 }),
-    mkObj('late', 'text', { enterTime: 8, duration: 1.5 })
+    mkObj('late', 'text', { enterTime: 8, duration: 1.5 }),            // gone at 9.5 + 0.5 fade
+    mkObj('persist', 'star', { enterTime: 0, duration: 2, exitAnim: 'none' })
   ];
   const engine = freshEngine();
   const tracks = [{ id: 't1', clips: [] }];
@@ -347,9 +351,12 @@ section('2.1 Object time windows (preview == export)');
   check(at(5).hiddenIds.has('mid') === false, 't=5: mid visible');
   check(at(5).hiddenIds.has('early'), 't=5: early after exit hidden');
   check(at(8.4).hiddenIds.has('late') === false, 't=8.4: late visible');
-  check(at(9.6).hiddenIds.has('late'), 't=9.6: late after exit hidden');
+  check(at(10.1).hiddenIds.has('late'), 't=10.1: late gone after its exit anim completes');
   check(at(0).hiddenIds.has('early') === false, 't=0: enter boundary inclusive');
-  check(at(2).hiddenIds.has('early'), 't=2: exit boundary exclusive');
+  check(at(2).hiddenIds.has('early') === false, 't=2: at window end still visible (exit anim runs [2, 2.5))');
+  check(at(2.6).hiddenIds.has('early'), 't=2.6: gone once the exit anim completes');
+  // 'none' exit: the export never removes the mobject — open-ended window
+  check(at(50).hiddenIds.has('persist') === false, "t=50: exitAnim 'none' persists (export never removes it)");
 }
 
 section('2.2 visible:false always hidden');
@@ -380,8 +387,14 @@ section('2.3 Enter/exit animation envelopes');
 
   const e = [mkObj('e', 'circle', { enterTime: 0, duration: 2, exitAnim: 'fade_out', exitAnimDur: 1 })];
   const opExit = (t) => (engine.computeFrame(t, [{ clips: [] }], e).objectOverrides.e || {}).opacity;
-  check(opExit(1.9) < 0.5, 'fade_out nearly done at the end (ease-out)', opExit(1.9));
-  check(engine.computeFrame(2.1, [{ clips: [] }], e).hiddenIds.has('e'), 'gone after window');
+  // Issue #43: the exit anim runs AFTER the window ends (the export's
+  // FadeOut step starts at exitTime) - full opacity at the window end,
+  // fading across [exitTime, exitTime + exitAnimDur).
+  check(opExit(1.9) === undefined, 'no pre-fade: no overrides before the window ends', opExit(1.9));
+  check(approx(opExit(2.0), 1, 0.01), 'fade_out starts AT the window end (t=2)', opExit(2.0));
+  check(opExit(2.5) < 0.95 && opExit(2.5) > 0, 'fade_out mid-window (ease-in)', opExit(2.5));
+  check(opExit(2.9) < 0.35, 'fade_out nearly done (ease-in)', opExit(2.9));
+  check(engine.computeFrame(3.05, [{ clips: [] }], e).hiddenIds.has('e'), 'gone after the exit anim completes');
 }
 
 section('2.4 Completed clips HOLD their final value (no snap-back)');
@@ -491,7 +504,10 @@ section('2.7 Transform (morph) clips');
   const engine = freshEngine();
 
   const before = engine.computeFrame(1, [{ clips: [tf] }], objects);
-  check(!before.hiddenIds.has('src') && !before.hiddenIds.has('tgt'), 'before transform: both visible');
+  // Issue #43: the target's own entrance is suppressed in the export
+  // (transform targets skip enter animations) - it first exists on screen
+  // as the morph result, never before the clip.
+  check(!before.hiddenIds.has('src') && before.hiddenIds.has('tgt'), 'before transform: source visible, target hidden (enters only via the morph)');
 
   const during = engine.computeFrame(3, [{ clips: [tf] }], objects);
   check(during.hiddenIds.has('src') && during.hiddenIds.has('tgt'), 'during transform: source+target hidden');
@@ -499,6 +515,30 @@ section('2.7 Transform (morph) clips');
 
   const after = engine.computeFrame(5, [{ clips: [tf] }], objects);
   check(after.hiddenIds.has('src') && !after.hiddenIds.has('tgt'), 'after transform: source replaced by target');
+}
+
+section('2.7b Transform with PRODUCT-DEFAULT durations (the user flow: add 2 shapes, Transform A-B)');
+{
+  // Defaults: enterTime 0, duration 3, fade_in 0.5, fade_out 0.5 - the
+  // clip lands at src.end - 0.5 = 2.5 and runs to 4.0. This is the exact
+  // scenario from issue #43 (the old suite used duration 10 and missed it).
+  const objects = [
+    mkObj('a', 'circle', { duration: 3 }),
+    mkObj('b', 'square', { duration: 3 })
+  ];
+  const tf = { id: 'tf', type: 'transform', startTime: 2.5, duration: 1.5, easing: 'ease_in_out', sourceId: 'a', targetId: 'b', morphQuality: 'medium' };
+  const engine = freshEngine();
+  const at = (t) => engine.computeFrame(t, [{ clips: [tf] }], objects);
+
+  check(!at(1).hiddenIds.has('a') && at(1).hiddenIds.has('b'), 't=1: only the source on stage (target has no independent entrance)');
+  check(at(3.2).morphShapes.length === 1 && at(3.2).hiddenIds.has('a') && at(3.2).hiddenIds.has('b'), 't=3.2: mid-morph - both hidden, morph shape carries the visuals');
+  check(!at(4.2).hiddenIds.has('b') && at(4.2).hiddenIds.has('a'), 't=4.2: morph completed - the RESULT is on stage, source consumed');
+  // Target's exit is clip-adjusted: exitTime = max(3, 4.0 + 0.1) = 4.1,
+  // fade 4.1-4.6, gone from 4.6 (mirrors the generated FadeOut step).
+  check(!at(4.15).hiddenIds.has('b'), 't=4.15: result still visible (exit anim starts at 4.1)');
+  const opB = (t) => (at(t).objectOverrides.b || {}).opacity;
+  check(opB(4.2) !== undefined && opB(4.2) < 1, 't=4.2: result is fading out (post-exit anim)', opB(4.2));
+  check(at(4.7).hiddenIds.has('b'), 't=4.7: result gone after its exit anim completes');
 }
 
 section('2.8 Simultaneous animations on independent objects');
@@ -912,7 +952,8 @@ section('5.5 Timing edge cases');
   const engine = freshEngine();
   const tracks = [{ clips: [] }];
   check(engine.computeFrame(2.05, tracks, objects).hiddenIds.has('blink') === false, '0.1s window: still visible at 2.05');
-  check(engine.computeFrame(2.2, tracks, objects).hiddenIds.has('blink'), '0.1s window: gone at 2.2');
+  check(engine.computeFrame(2.2, tracks, objects).hiddenIds.has('blink') === false, '0.1s window: exit anim keeps it fading at 2.2 (issue #43)');
+  check(engine.computeFrame(2.7, tracks, objects).hiddenIds.has('blink'), '0.1s window: gone once the exit anim completes (2.6)');
   const f = engine.computeFrame(2.5, tracks, objects);
   check(!f.hiddenIds.has('overlap1') && !f.hiddenIds.has('overlap2'), 'overlapping windows both visible');
   const zt = mkProject([mkObj('z', 'circle', { enterTime: 0, duration: 0.1 })]);
